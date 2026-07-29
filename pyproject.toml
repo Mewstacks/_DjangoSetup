@@ -29,7 +29,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
-  "coverage==7.13.4",
+  "coverage==7.15.2",
   "django-stubs==6.0.7",
   "djangorestframework-stubs==3.17.1",
   "mypy==1.19.1",
