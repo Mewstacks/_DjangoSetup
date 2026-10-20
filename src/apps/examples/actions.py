@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from apps.actions.context import ActionContext
 from apps.actions.registry import action
-from apps.examples import services
+from apps.examples import services, undo  # noqa: F401  (registers the undo handlers)
 from apps.examples.models import Note
 
 

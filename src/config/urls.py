@@ -11,6 +11,14 @@ urlpatterns: list[URLPattern | URLResolver] = [
     path("api/v1/", include("config.urls_api")),
 ]
 
+if settings.OAUTH_ENABLED:
+    from apps.oauth.urls import root_urlpatterns as oauth_root_patterns
+
+    urlpatterns += [
+        *oauth_root_patterns,
+        path("o/", include("apps.oauth.urls")),
+    ]
+
 if settings.API_DOCS_ENABLED:
     # Public in development; behind an admin session anywhere else.
     docs_permissions = [AllowAny] if settings.DEBUG else [IsAdminUser]

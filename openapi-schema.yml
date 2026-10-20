@@ -1403,6 +1403,215 @@ paths:
               schema:
                 $ref: '#/components/schemas/DataSubjectRequest'
           description: ''
+  /api/v1/actions/actions.changes/:
+    post:
+      operationId: action_actions_changes
+      summary: Actions Changes
+      description: List the caller's recent changes, newest first, with ids that `actions.undo`
+        accepts.
+      tags:
+      - actions
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: actions:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeList'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListChanges'
+    get:
+      operationId: action_actions_changes_get
+      summary: Actions Changes
+      description: |-
+        List the caller's recent changes, newest first, with ids that `actions.undo` accepts.
+
+        Input is passed as query parameters.
+      tags:
+      - actions
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: actions:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeList'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/actions/actions.undo/:
+    post:
+      operationId: action_actions_undo
+      summary: Actions Undo
+      description: Take back one of your own changes. Refuses if the record was edited
+        after it.
+      tags:
+      - actions
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: 'Repeat a call safely: the stored response is replayed.'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: actions:write
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChangeOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeRef'
   /api/v1/actions/notes.list/:
     post:
       operationId: action_notes_list
@@ -2600,6 +2809,66 @@ components:
               type:
               - string
               - 'null'
+    ChangeList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ChangeOut'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ChangeList
+      type: object
+    ChangeOut:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        action:
+          title: Action
+          type: string
+        op:
+          title: Op
+          type: string
+        target_type:
+          title: Target Type
+          type: string
+        target_id:
+          title: Target Id
+          type: string
+        label:
+          title: Label
+          type: string
+        status:
+          title: Status
+          type: string
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+      required:
+      - id
+      - action
+      - op
+      - target_type
+      - target_id
+      - label
+      - status
+      - created_at
+      title: ChangeOut
+      type: object
+    ChangeRef:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+      required:
+      - id
+      title: ChangeRef
+      type: object
     CreateNote:
       properties:
         title:
@@ -2615,6 +2884,20 @@ components:
       required:
       - title
       title: CreateNote
+      type: object
+    ListChanges:
+      properties:
+        limit:
+          default: 20
+          maximum: 50
+          minimum: 1
+          title: Limit
+          type: integer
+        only_applied:
+          default: true
+          title: Only Applied
+          type: boolean
+      title: ListChanges
       type: object
     ListNotes:
       properties:

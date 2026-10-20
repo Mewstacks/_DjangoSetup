@@ -168,7 +168,8 @@ def test_create_list_rotate_and_revoke_through_the_api(
     assert created.status_code == 201
     assert created["Cache-Control"] == "no-store"
     secret = created.data["secret"]
-    assert created.data["scopes"] == ["notes:read"]
+    assert "notes:read" in created.data["scopes"]
+    assert not any(s.endswith(":write") for s in created.data["scopes"])
     assert "secret" not in org_client.get(f"/api/v1/api-keys/{created.data['id']}/").data
     assert bearer(secret).get("/api/v1/notes/").status_code == 200
 

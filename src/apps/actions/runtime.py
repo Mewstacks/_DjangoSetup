@@ -30,6 +30,7 @@ from django.db import IntegrityError, transaction
 from pydantic import BaseModel, ValidationError
 
 from apps.actions.context import ActionContext
+from apps.actions.journal import attach_run, persist_changes
 from apps.actions.models import IdempotencyRecord
 from apps.actions.registry import ActionSpec, get_action
 from apps.audit.services import record_event
@@ -135,6 +136,7 @@ def _run(
 ) -> tuple[dict[str, Any], bool]:
     claimed: IdempotencyRecord | None = None
     with transaction.atomic():
+        run = attach_run(ctx)
         if idempotency_key:
             claimed, replay = _claim(ctx, spec, idempotency_key, _request_hash(spec, parsed))
             if replay is not None:
@@ -148,6 +150,7 @@ def _run(
         except DjangoValidationError as exc:
             raise Invalid("Invalid input.", extra=exc.messages) from exc
         output = _to_output(spec, result)
+        persist_changes(ctx, spec.name, run)
         if spec.audit:
             record_event(
                 action=f"action.{spec.name}",

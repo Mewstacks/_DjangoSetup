@@ -34,6 +34,7 @@ class ActionContext:
     client_ip: str | None = None
     target: Model | None = field(default=None, repr=False)
     notes: list[str] = field(default_factory=list, repr=False)
+    changes: list[dict[str, Any]] = field(default_factory=list, repr=False)
 
     @property
     def role(self) -> str:
@@ -62,6 +63,27 @@ class ActionContext:
             raise NotFound(
                 f"{str(model._meta.verbose_name or model.__name__).capitalize()} not found."
             ) from exc
+
+    def record_change(
+        self,
+        op: str,
+        instance: Model,
+        *,
+        before: dict[str, Any] | None = None,
+        after: dict[str, Any] | None = None,
+        label: str = "",
+    ) -> None:
+        """Declare what this call changed so it can be listed and undone (see journal.py)."""
+        self.changes.append(
+            {
+                "op": op,
+                "target_type": instance._meta.label_lower,
+                "target_id": str(instance.pk),
+                "label": label[:200],
+                "before": before or {},
+                "after": after or {},
+            }
+        )
 
     def set_target(self, instance: Model) -> None:
         """Name the record this call acted on; it ends up in the audit event."""

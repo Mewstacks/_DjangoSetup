@@ -14,7 +14,9 @@ dependencies = [
   "cryptography==50.0.2",
   "django-axes==8.3.1",
   "django-cors-headers==4.9.0",
+  "django-oauth-toolkit==3.4.1",
   "django-redis==7.0.0",
+  "fastmcp-slim[server]==4.1.1",
   "django-storages[s3]==1.14.6",
   "djangorestframework==3.18.3",
   "drf-spectacular==0.30.0",
@@ -83,7 +85,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S105", "S106", "S311", "E501"]
+"tests/**/*.py" = ["S105", "S106", "S107", "S311", "E501"]
 "src/**/migrations/*.py" = ["E501", "RUF012"]
 "src/config/settings/*.py" = ["F403", "F405", "S105"]
 
@@ -95,7 +97,7 @@ warn_unreachable = true
 exclude = ["(/migrations/|/admin\\.py$|/settings/)"]
 
 [[tool.mypy.overrides]]
-module = ["axes", "axes.*"]
+module = ["axes", "axes.*", "oauth2_provider", "oauth2_provider.*"]
 ignore_missing_imports = true
 
 [tool.django-stubs]

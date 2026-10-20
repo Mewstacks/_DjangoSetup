@@ -7,6 +7,260 @@
         "flow",
         "mcp"
       ],
+      "description": "List the caller's recent changes, newest first, with ids that `actions.undo` accepts.",
+      "input_schema": {
+        "properties": {
+          "limit": {
+            "default": 20,
+            "maximum": 50,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "only_applied": {
+            "default": true,
+            "title": "Only Applied",
+            "type": "boolean"
+          }
+        },
+        "title": "ListChanges",
+        "type": "object"
+      },
+      "name": "actions.changes",
+      "output_schema": {
+        "$defs": {
+          "ChangeOut": {
+            "properties": {
+              "action": {
+                "title": "Action",
+                "type": "string"
+              },
+              "created_at": {
+                "format": "date-time",
+                "title": "Created At",
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "title": "Id",
+                "type": "string"
+              },
+              "label": {
+                "title": "Label",
+                "type": "string"
+              },
+              "op": {
+                "title": "Op",
+                "type": "string"
+              },
+              "status": {
+                "title": "Status",
+                "type": "string"
+              },
+              "target_id": {
+                "title": "Target Id",
+                "type": "string"
+              },
+              "target_type": {
+                "title": "Target Type",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "action",
+              "op",
+              "target_type",
+              "target_id",
+              "label",
+              "status",
+              "created_at"
+            ],
+            "title": "ChangeOut",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/ChangeOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ChangeList",
+        "type": "object"
+      },
+      "scope": "actions:read",
+      "title": "Actions Changes",
+      "write": false
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Take back one of your own changes. Refuses if the record was edited after it.",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "ChangeRef",
+        "type": "object"
+      },
+      "name": "actions.undo",
+      "output_schema": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          },
+          "op": {
+            "title": "Op",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "target_id": {
+            "title": "Target Id",
+            "type": "string"
+          },
+          "target_type": {
+            "title": "Target Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "op",
+          "target_type",
+          "target_id",
+          "label",
+          "status",
+          "created_at"
+        ],
+        "title": "ChangeOut",
+        "type": "object"
+      },
+      "scope": "actions:write",
+      "title": "Actions Undo",
+      "write": true
+    },
+    {
+      "channels": [
+        "mcp"
+      ],
+      "description": "Attach a summary and your model name to the current working session (optional).",
+      "input_schema": {
+        "properties": {
+          "input_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Input Tokens"
+          },
+          "model": {
+            "default": "",
+            "maxLength": 80,
+            "title": "Model",
+            "type": "string"
+          },
+          "output_tokens": {
+            "anyOf": [
+              {
+                "minimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Output Tokens"
+          },
+          "summary": {
+            "default": "",
+            "maxLength": 4000,
+            "title": "Summary",
+            "type": "string"
+          }
+        },
+        "title": "RunReport",
+        "type": "object"
+      },
+      "name": "agent.report",
+      "output_schema": {
+        "properties": {
+          "duration_ms": {
+            "title": "Duration Ms",
+            "type": "integer"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "tool_calls": {
+            "title": "Tool Calls",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "tool_calls",
+          "duration_ms"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "scope": "actions:write",
+      "title": "Agent Report",
+      "write": true
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
       "description": "Archive a note. Archived notes are hidden from the default list and read-only.",
       "input_schema": {
         "properties": {
