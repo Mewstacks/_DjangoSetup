@@ -1,14 +1,21 @@
 from __future__ import annotations
 
 import contextlib
+import logging
+from typing import cast
 
 from django.conf import settings
 from django.contrib.auth.signals import user_logged_in, user_logged_out, user_login_failed
+from django.core.cache import cache
 from django.core.exceptions import ImproperlyConfigured
 from django.dispatch import receiver
+from django.http import HttpRequest
 
 from apps.audit.services import record_event
 from apps.common.encryption import blind_index
+from apps.common.network import client_ip_bucket
+
+logger = logging.getLogger(__name__)
 
 
 @receiver(user_logged_in)
@@ -40,4 +47,15 @@ def audit_login_failure(
     if username and settings.PRIVACY_HMAC_KEY:
         with contextlib.suppress(ImproperlyConfigured):
             metadata["username_index"] = blind_index(username, namespace="audit-login-username")
+    # A brute-force run would otherwise write one row per attempt into a table that is never
+    # deleted. One event per (client bucket, account) per minute keeps the signal (it is
+    # visible and dated) without letting an attacker choose the table's growth rate.
+    marker = metadata.get("username_index", "")
+    bucket = (client_ip_bucket(cast(HttpRequest, request)) or "") if request is not None else ""
+    key = f"audit:loginfail:{bucket}:{marker}"
+    try:
+        if not cache.add(key, 1, 60):
+            return
+    except Exception:  # a cache outage must not hide failures: record them
+        logger.warning("audit_login_failure_dedupe_unavailable")
     record_event(action="auth.login_failed", request=request, success=False, metadata=metadata)

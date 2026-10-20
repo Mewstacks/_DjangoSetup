@@ -352,6 +352,10 @@ OAUTH_DCR_ANONYMOUS = env_bool("OAUTH_DCR_ANONYMOUS", False)
 OAUTH_ISSUER_URL = env_str("OAUTH_ISSUER_URL")  # public base URL, e.g. https://app.example.com
 MCP_PUBLIC_URL = env_str("MCP_PUBLIC_URL")  # public base URL of this service for /mcp
 
+# 0 keeps audit events forever. Brazil's Marco Civil (art. 15) asks application providers to
+# keep access-application logs for six months; set this to your own retention decision.
+AUDIT_RETENTION_DAYS = env_int("AUDIT_RETENTION_DAYS", 0)
+
 # Durable flows and background jobs (apps.flows). Off by default: flows then run on the local
 # engine and tasks run inline, so a fresh clone needs nothing but the database.
 TEMPORAL_ENABLED = env_bool("TEMPORAL_ENABLED", False)

@@ -51,6 +51,17 @@ def clear_sessions() -> dict[str, Any]:
     return {}
 
 
+@job("maintenance.prune_audit", schedule="55 4 * * *")
+def prune_audit() -> dict[str, Any]:
+    """Delete audit events past AUDIT_RETENTION_DAYS (0 keeps them forever, the default)."""
+    days = int(settings.AUDIT_RETENTION_DAYS)
+    if days <= 0:
+        return {"skipped": "AUDIT_RETENTION_DAYS=0"}
+    from apps.audit.integrity import prune
+
+    return prune(days)
+
+
 @job("maintenance.prune_flow_runs", schedule="50 4 * * *")
 def prune_flow_runs() -> dict[str, Any]:
     """Delete finished flow-run records older than 90 days."""

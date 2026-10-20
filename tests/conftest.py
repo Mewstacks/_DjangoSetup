@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+from django.db import connection
 from rest_framework.test import APIClient
 
 from apps.accounts.models import User
@@ -70,3 +71,14 @@ def other_org_client(db: object) -> APIClient:
     client.force_login(outsider)
     client.credentials(HTTP_X_ORGANIZATION_ID=str(other_organization.id))
     return client
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _allow_truncate_between_tests(django_db_setup: object, django_db_blocker: object) -> None:
+    """Django's ``flush`` between transactional tests issues TRUNCATE, which the audit table's
+    PostgreSQL trigger (rightly) refuses. Tests switch that one trigger off; the test that
+    proves the trigger works switches it back on for its own duration."""
+    if connection.vendor != "postgresql":
+        return
+    with django_db_blocker.unblock(), connection.cursor() as cursor:  # type: ignore[attr-defined]
+        cursor.execute("ALTER TABLE audit_auditevent DISABLE TRIGGER audit_auditevent_no_truncate")
