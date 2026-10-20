@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import contextlib
+from typing import Any
 
 from django.apps import apps
 
 from apps.privacy.catalog import Category, by_user, not_personal, personal
 
 
-def _model(label: str) -> type:
+def _model(label: str) -> Any:
     return apps.get_model(label)
 
 
@@ -74,6 +75,52 @@ def register_third_party() -> None:
             _model("oauth2_provider.application"),
             "A registered client (software), not a person; the platform never sets its owner.",
         )
+
+    _register_accounts()
+
+
+def _register_accounts() -> None:
+    """django-allauth: addresses, confirmations, MFA authenticators, device sessions."""
+    email = _model("account.emailaddress")
+    personal(
+        email,
+        resolver=by_user(email, "user"),
+        fields={"email": Category.CONTACT, "user": Category.IDENTIFIER},
+        purpose="account-and-access",
+        on_erase="delete",
+    )
+    confirmation = _model("account.emailconfirmation")
+
+    def confirmations(subject: object) -> object:
+        user_id = getattr(subject, "user_id", None)
+        if user_id is None:
+            return confirmation._default_manager.none()
+        return confirmation._default_manager.filter(email_address__user_id=user_id)
+
+    personal(
+        confirmation,
+        resolver=confirmations,  # type: ignore[arg-type]
+        fields={"key": Category.CREDENTIAL},
+        purpose="account-and-access",
+        retention_field="created",
+        on_erase="delete",
+    )
+    authenticator = _model("mfa.authenticator")
+    personal(
+        authenticator,
+        resolver=by_user(authenticator, "user"),
+        fields={"data": Category.CREDENTIAL, "user": Category.IDENTIFIER},
+        purpose="account-and-access",
+        on_erase="delete",
+    )
+    device = _model("usersessions.usersession")
+    personal(
+        device,
+        resolver=by_user(device, "user"),
+        fields={"ip": Category.TECHNICAL, "user_agent": Category.TECHNICAL},
+        purpose="security-and-audit",
+        on_erase="delete",
+    )
 
 
 register_third_party()

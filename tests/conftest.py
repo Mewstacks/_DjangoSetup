@@ -15,11 +15,15 @@ def api_client() -> APIClient:
 
 @pytest.fixture
 def user(db: object) -> User:
-    return User.objects.create_user(
+    from allauth.account.models import EmailAddress
+
+    created = User.objects.create_user(
         email="USER@Example.COM",
         password="correct-horse-battery-staple",
         full_name="Example User",
     )
+    EmailAddress.objects.create(user=created, email=created.email, primary=True, verified=True)
+    return created
 
 
 @pytest.fixture

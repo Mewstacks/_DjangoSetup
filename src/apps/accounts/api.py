@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Any, cast
 
+from django.conf import settings
 from django.contrib.auth import authenticate, login, logout
 from django.middleware.csrf import get_token
 from django.utils.decorators import method_decorator
@@ -60,6 +61,17 @@ class CsrfTokenView(APIView):
         return Response({"csrf_token": get_token(request)})
 
 
+def _needs_new_flow(user: User) -> bool:
+    from allauth.account.models import EmailAddress
+    from allauth.mfa.utils import is_mfa_enabled
+
+    if is_mfa_enabled(user):
+        return True
+    if settings.ACCOUNT_EMAIL_VERIFICATION == "mandatory":
+        return not EmailAddress.objects.filter(user=user, verified=True).exists()
+    return False
+
+
 @method_decorator(csrf_protect, name="dispatch")
 class LoginView(APIView):
     authentication_classes: list[type] = []
@@ -86,8 +98,23 @@ class LoginView(APIView):
                 {"error": {"code": "invalid_credentials", "detail": "Invalid credentials."}},
                 status=status.HTTP_401_UNAUTHORIZED,
             )
+        # Deprecated: this password-only door predates verified e-mail and MFA. It must never be
+        # a way around either, so anything the new flow would ask for is refused here.
+        if _needs_new_flow(user):
+            return Response(
+                {
+                    "error": {
+                        "code": "use_accounts_flow",
+                        "detail": "Sign in through /api/v1/accounts/.",
+                    }
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         login(request, user)
-        return Response(MeSerializer(user).data)
+        response = Response(MeSerializer(user).data)
+        response["Deprecation"] = "true"
+        response["Link"] = '</api/v1/accounts/browser/v1/auth/login>; rel="successor-version"'
+        return response
 
 
 class LogoutView(APIView):

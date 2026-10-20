@@ -28,6 +28,11 @@ DJANGO_APPS = [
     "django.contrib.staticfiles",
 ]
 THIRD_PARTY_APPS = [
+    "allauth",
+    "allauth.account",
+    "allauth.headless",
+    "allauth.mfa",
+    "allauth.usersessions",
     "axes",
     "corsheaders",
     "rest_framework",
@@ -67,6 +72,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "apps.organizations.middleware.OrganizationContextMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django.middleware.csp.ContentSecurityPolicyMiddleware",
     "axes.middleware.AxesMiddleware",
@@ -170,9 +176,39 @@ else:
     }
 
 AUTH_USER_MODEL = "accounts.User"
+
+# Accounts (django-allauth). Email is the only identity; the user model has no username.
+# Signup is closed unless SIGNUP_ENABLED=true; new addresses must be verified before login.
+SIGNUP_ENABLED = env_bool("SIGNUP_ENABLED", False)
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/"
+ACCOUNT_ADAPTER = "apps.accounts.adapters.AccountAdapter"
+ACCOUNT_LOGIN_METHODS = {"email"}
+ACCOUNT_SIGNUP_FIELDS = ["email*", "password1*"]
+ACCOUNT_USER_MODEL_USERNAME_FIELD = None
+ACCOUNT_EMAIL_VERIFICATION = "mandatory"
+ACCOUNT_EMAIL_VERIFICATION_BY_CODE_ENABLED = True
+ACCOUNT_PASSWORD_RESET_BY_CODE_ENABLED = True
+ACCOUNT_PREVENT_ENUMERATION = True
+ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
+ACCOUNT_EMAIL_NOTIFICATIONS = True
+ACCOUNT_LOGIN_ON_PASSWORD_RESET = False
+ACCOUNT_LOGOUT_REDIRECT_URL = "/accounts/login/"
+MFA_ADAPTER = "apps.accounts.adapters.MFAAdapter"
+MFA_SUPPORTED_TYPES = ["totp", "recovery_codes", "webauthn"]
+MFA_TOTP_ISSUER = env_str("APP_NAME") or "saas"
+MFA_PASSKEY_LOGIN_ENABLED = False
+HEADLESS_CLIENTS = ("browser", "app")
+_frontend = env_str("FRONTEND_URL", "http://localhost:3000")
+HEADLESS_FRONTEND_URLS = {
+    "account_confirm_email": _frontend + "/verify/{key}",
+    "account_reset_password_from_key": _frontend + "/reset/{key}",
+    "account_signup": _frontend + "/signup",
+}
 AUTHENTICATION_BACKENDS = [
     "axes.backends.AxesStandaloneBackend",
     "django.contrib.auth.backends.ModelBackend",
+    "allauth.account.auth_backends.AuthenticationBackend",
 ]
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
@@ -279,6 +315,7 @@ CORS_ALLOW_HEADERS = [
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "apps.apikeys.authentication.ApiKeyAuthentication",
+        "allauth.headless.contrib.rest_framework.authentication.XSessionTokenAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [

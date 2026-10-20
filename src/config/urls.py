@@ -9,6 +9,9 @@ from rest_framework.permissions import AllowAny, IsAdminUser
 
 urlpatterns: list[URLPattern | URLResolver] = [
     path("api/v1/", include("config.urls_api")),
+    # Accounts: JSON for apps and SPAs (browser and app clients), HTML for OAuth login/consent.
+    path("api/v1/accounts/", include("allauth.headless.urls")),
+    path("accounts/", include("allauth.urls")),
 ]
 
 if settings.OAUTH_ENABLED:
@@ -40,4 +43,8 @@ if settings.API_DOCS_ENABLED:
     )
 
 if settings.ADMIN_ENABLED:
+    # The admin's own login form would sidestep verified e-mail and MFA; send it through allauth.
+    from allauth.account.decorators import secure_admin_login
+
+    admin.site.login = secure_admin_login(admin.site.login)  # type: ignore[method-assign]
     urlpatterns.append(path("admin/", admin.site.urls))
