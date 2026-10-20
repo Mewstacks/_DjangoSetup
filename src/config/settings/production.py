@@ -52,6 +52,8 @@ if ADMIN_ENABLED and not ADMIN_ALLOWED_IPS:
     raise ImproperlyConfigured("ADMIN_ENABLED in production requires ADMIN_ALLOWED_IPS.")
 DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env_bool("DB_PGBOUNCER", False)
 
+if NETGUARD_ALLOW_PRIVATE:
+    raise ImproperlyConfigured("NETGUARD_ALLOW_PRIVATE must be off in production (SSRF guard).")
 if env_str("LOG_LEVEL", "INFO").upper() == "DEBUG":
     raise ImproperlyConfigured("LOG_LEVEL=DEBUG is not allowed in production.")
 

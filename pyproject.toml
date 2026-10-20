@@ -17,6 +17,7 @@ dependencies = [
   "django-oauth-toolkit==3.4.1",
   "django-redis==7.0.0",
   "fastmcp-slim[server]==4.1.1",
+  "httpx==0.28.1",
   "django-storages[s3]==1.14.6",
   "djangorestframework==3.18.3",
   "drf-spectacular==0.30.0",

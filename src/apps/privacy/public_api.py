@@ -23,7 +23,6 @@ from rest_framework.views import APIView
 
 from apps.audit.services import record_event
 from apps.common.exceptions import Invalid, NotFound, Unavailable
-from apps.common.mail import send_safely
 from apps.common.network import client_ip_bucket
 from apps.common.throttling import IPAnonRateThrottle, IPScopedRateThrottle
 from apps.privacy.lifecycle import mark_verified, start_dsar
@@ -34,7 +33,7 @@ from apps.privacy.models import (
     ProcessingPurpose,
     SubProcessor,
 )
-from apps.privacy.services import VERIFY_SALT, read_export
+from apps.privacy.services import VERIFY_SALT, read_export, send_confirmation
 
 VERIFY_MAX_AGE = 48 * 3600
 PER_EMAIL_PER_DAY = 3
@@ -158,12 +157,7 @@ class PublicRequestView(PublicBase):
                 details=data.get("details", ""),
                 status=DataSubjectRequest.Status.VERIFYING,
             )
-            token = TimestampSigner(salt=VERIFY_SALT).sign(str(created.pk))
-            send_safely(
-                "Confirm your request",
-                f"Confirm that you made this request: {token}\n",
-                [data["email"]],
-            )
+            send_confirmation(created, data["email"])
             record_event(
                 action="privacy.public_request.received",
                 request=request._request,

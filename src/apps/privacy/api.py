@@ -30,7 +30,7 @@ from apps.privacy.models import (
     PrivacyNotice,
     ProcessingPurpose,
 )
-from apps.privacy.services import consent_state
+from apps.privacy.services import DESTRUCTIVE, consent_state, send_confirmation
 
 
 class PrivacyThrottle(IPUserRateThrottle):
@@ -256,11 +256,18 @@ class DataSubjectRequestSerializer(serializers.ModelSerializer[DataSubjectReques
     @transaction.atomic
     def create(self, validated_data: dict[str, Any]) -> DataSubjectRequest:
         user = cast(User, self.context["request"].user)
+        step_up = validated_data["request_type"] in DESTRUCTIVE
         privacy_request = DataSubjectRequest.objects.create(
             requester=user,
             subject=DataSubject.for_user(user),
-            # A signed-in requester has already proven who they are.
-            identity_verified_at=timezone.now(),
+            # Being signed in proves who you are for reading your data. Erasing or blocking
+            # also needs the link mailed to the account (a stolen session could not do it).
+            identity_verified_at=None if step_up else timezone.now(),
+            status=(
+                DataSubjectRequest.Status.VERIFYING
+                if step_up
+                else DataSubjectRequest.Status.RECEIVED
+            ),
             **validated_data,
         )
         record_event(
@@ -270,7 +277,10 @@ class DataSubjectRequestSerializer(serializers.ModelSerializer[DataSubjectReques
             request=self.context["request"]._request,
             metadata={"request_type": privacy_request.request_type},
         )
-        start_after_commit(privacy_request)
+        if step_up:
+            send_confirmation(privacy_request, user.email)
+        else:
+            start_after_commit(privacy_request)
         return privacy_request
 
 

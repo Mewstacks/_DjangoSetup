@@ -532,3 +532,38 @@ def test_dsar_sweep_starts_flows_that_never_started(user: User) -> None:
     request.refresh_from_db()
     assert request.status == Status.COMPLETED
     assert execute_job("privacy.dsar_sweep")["started"] == 0
+
+
+def test_destructive_requests_need_the_mailed_link_even_for_a_signed_in_user(
+    user: User, django_capture_on_commit_callbacks: object
+) -> None:
+    """Review finding: one POST from a hijacked session used to erase the account at once."""
+    client = APIClient()
+    client.force_authenticate(user)
+    with django_capture_on_commit_callbacks(execute=True):  # type: ignore[operator]
+        created = client.post(
+            "/api/v1/privacy/requests/", {"request_type": "deletion"}, format="json"
+        )
+    request = DataSubjectRequest.objects.get(pk=created.data["id"])
+    user.refresh_from_db()
+    assert created.status_code == 201 and request.status == Status.VERIFYING
+    assert user.is_active and user.anonymized_at is None and not FlowRun.objects.exists()
+    mail_to_owner = next(m for m in mail.outbox if m.to == [user.email])
+    token = mail_to_owner.body.split(": ", 1)[1].strip()
+
+    done = APIClient().post("/api/v1/privacy/public/verify/", {"token": token}, format="json")
+    assert done.status_code == 200
+    user.refresh_from_db()
+    assert user.anonymized_at is not None and not user.is_active
+
+
+def test_reading_requests_do_not_need_the_extra_step(
+    user: User, django_capture_on_commit_callbacks: object
+) -> None:
+    client = APIClient()
+    client.force_authenticate(user)
+    with django_capture_on_commit_callbacks(execute=True):  # type: ignore[operator]
+        created = client.post(
+            "/api/v1/privacy/requests/", {"request_type": "confirmation"}, format="json"
+        )
+    assert DataSubjectRequest.objects.get(pk=created.data["id"]).status == Status.COMPLETED

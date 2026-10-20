@@ -299,6 +299,21 @@ def withdraw_all_consents(user: Any) -> int:
 
 # --- executing a request ------------------------------------------------------------------
 
+# Irreversible, or cuts the person off. A stolen session must not be able to erase an account
+# in one POST, so these wait for a link sent to the account's own address (step-up).
+DESTRUCTIVE = frozenset({Type.DELETION, Type.ANONYMIZATION, Type.BLOCKING})
+
+
+def send_confirmation(request: DataSubjectRequest, address: str) -> None:
+    """Mail the signed link that proves control of the mailbox the request names."""
+    token = TimestampSigner(salt=VERIFY_SALT).sign(str(request.pk))
+    send_safely(
+        "Confirm your request",
+        f"Confirm that you made this request: {token}\n",
+        [address],
+    )
+
+
 AUTOMATIC = {
     Type.ACCESS,
     Type.PORTABILITY,
