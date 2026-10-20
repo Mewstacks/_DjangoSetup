@@ -26,7 +26,7 @@ from apps.common.context import LOG_CONTEXT_VARS
 
 REDACTED = "[REDACTED]"
 
-_SECRET_KEYS = (  # noqa: S105 - regex fragment, not a credential
+_SENSITIVE_NAMES = (
     r"password|passwd|pwd|secret[\w-]*|token|authorization|cookie|api[_-]?key|sessionid|"
     r"csrftoken|access[_-]?token|refresh[_-]?token|client[_-]?secret|private[_-]?key|"
     r"aws_secret_access_key|signature"
@@ -41,7 +41,7 @@ _PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
     (
         # key=value, key: value, "key": "value", 'key': 'value' (quotes optional)
         re.compile(
-            rf"""(?ix)(["']?\b(?:{_SECRET_KEYS})["']?\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\s,;&}}\]]+)"""
+            rf"""(?ix)(["']?\b(?:{_SENSITIVE_NAMES})["']?\s*[=:]\s*)(?:"[^"]*"|'[^']*'|[^\s,;&}}\]]+)"""
         ),
         r"\1" + REDACTED,
     ),
@@ -123,25 +123,30 @@ def redact_event(logger: Any, method: str, event_dict: EventDict) -> EventDict:
     return {key: redact_value(value, key=key) for key, value in event_dict.items()}
 
 
-def _shared_processors() -> list[Processor]:
+def _context_processors() -> list[Processor]:
+    """Run for native structlog events and (as ``foreign_pre_chain``) for stdlib records."""
     return [
         structlog.stdlib.add_log_level,
         structlog.stdlib.add_logger_name,
         structlog.processors.TimeStamper(fmt="iso", utc=True),
         add_app_context,
         structlog.processors.StackInfoRenderer(),
-        structlog.processors.format_exc_info,
-        redact_event,
-        structlog.processors.EventRenamer("message"),
     ]
 
 
 def build_formatter() -> logging.Formatter:
-    """``LOGGING['formatters'][...]['()']`` target: JSON for stdlib and structlog records alike."""
+    """``LOGGING['formatters'][...]['()']`` target: JSON for stdlib and structlog records alike.
+
+    Exception rendering and redaction sit in the formatter's own ``processors`` - the one chain
+    both kinds of record pass through last - so no logging path can skip them.
+    """
     return structlog.stdlib.ProcessorFormatter(
-        foreign_pre_chain=_shared_processors(),
+        foreign_pre_chain=_context_processors(),
         processors=[
             structlog.stdlib.ProcessorFormatter.remove_processors_meta,
+            structlog.processors.format_exc_info,
+            redact_event,
+            structlog.processors.EventRenamer("message"),
             structlog.processors.JSONRenderer(ensure_ascii=False, default=str),
         ],
     )
@@ -151,7 +156,7 @@ def configure_structlog() -> None:
     """Route ``structlog.get_logger()`` through the stdlib handlers configured in LOGGING."""
     structlog.configure(
         processors=[
-            *_shared_processors()[:-2],  # formatter does exception rendering + redaction last
+            *_context_processors(),
             structlog.stdlib.ProcessorFormatter.wrap_for_formatter,
         ],
         logger_factory=structlog.stdlib.LoggerFactory(),

@@ -326,3 +326,29 @@ def test_api_responses_are_no_store_and_vary_on_organization() -> None:
     response = APIClient().get("/api/v1/health/live/")
     assert response["Cache-Control"] == "no-store"
     assert "X-Organization-ID" in response["Vary"]
+
+
+def test_native_structlog_events_are_redacted_too() -> None:
+    """Review finding: events from ``structlog.get_logger()`` skipped the redaction step."""
+    import io
+
+    import structlog
+
+    from apps.common.logging import configure_structlog
+
+    configure_structlog()
+    stream = io.StringIO()
+    handler = logging.StreamHandler(stream)
+    handler.setFormatter(app_logging.build_formatter())
+    target = logging.getLogger("native-test")
+    target.handlers = [handler]
+    target.propagate = False
+    target.setLevel(logging.INFO)
+    structlog.get_logger("native-test").info(
+        "login", email="joao@example.com", password="hunter2", note="cpf 123.456.789-09"
+    )
+    line = stream.getvalue()
+    assert "joao@example.com" not in line
+    assert "hunter2" not in line
+    assert "123.456.789-09" not in line
+    assert json.loads(line)["message"] == "login"
