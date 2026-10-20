@@ -42,6 +42,7 @@ LOCAL_APPS = [
     "apps.actions",
     "apps.flows",
     "apps.webhooks",
+    "apps.flags",
     "apps.observability",
     "apps.apikeys",
     "apps.examples",

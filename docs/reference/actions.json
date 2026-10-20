@@ -261,6 +261,36 @@
         "flow",
         "mcp"
       ],
+      "description": "Which feature flags are on for you in this organization.",
+      "input_schema": null,
+      "name": "flags.evaluate",
+      "output_schema": {
+        "properties": {
+          "flags": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Flags",
+            "type": "object"
+          }
+        },
+        "required": [
+          "flags"
+        ],
+        "title": "FlagState",
+        "type": "object"
+      },
+      "scope": "flags:read",
+      "title": "Flags Evaluate",
+      "write": false
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
       "description": "Cancel a running flow (Temporal engine only).",
       "input_schema": {
         "properties": {
@@ -1260,6 +1290,56 @@
       "scope": "notes:write",
       "title": "Notes Update",
       "write": true
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "The effective value of a runtime setting for this organization.",
+      "input_schema": {
+        "properties": {
+          "key": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Key",
+            "type": "string"
+          }
+        },
+        "required": [
+          "key"
+        ],
+        "title": "SettingValue",
+        "type": "object"
+      },
+      "name": "settings.get",
+      "output_schema": {
+        "properties": {
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "key": {
+            "title": "Key",
+            "type": "string"
+          },
+          "value": {
+            "title": "Value"
+          }
+        },
+        "required": [
+          "key",
+          "value",
+          "description"
+        ],
+        "title": "SettingOut",
+        "type": "object"
+      },
+      "scope": "flags:read",
+      "title": "Settings Get",
+      "write": false
     }
   ]
 }

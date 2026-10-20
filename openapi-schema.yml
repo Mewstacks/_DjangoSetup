@@ -3015,6 +3015,264 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RunRef'
+  /api/v1/actions/flags.evaluate/:
+    post:
+      operationId: action_flags_evaluate
+      summary: Flags Evaluate
+      description: Which feature flags are on for you in this organization.
+      tags:
+      - flags
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flags:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlagState'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    get:
+      operationId: action_flags_evaluate_get
+      summary: Flags Evaluate
+      description: |-
+        Which feature flags are on for you in this organization.
+
+        Input is passed as query parameters.
+      tags:
+      - flags
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flags:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlagState'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/actions/settings.get/:
+    post:
+      operationId: action_settings_get
+      summary: Settings Get
+      description: The effective value of a runtime setting for this organization.
+      tags:
+      - settings
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flags:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SettingValue'
+    get:
+      operationId: action_settings_get_get
+      summary: Settings Get
+      description: |-
+        The effective value of a runtime setting for this organization.
+
+        Input is passed as query parameters.
+      tags:
+      - settings
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flags:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SettingOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
   /api/v1/actions/notes.list/:
     post:
       operationId: action_notes_list
@@ -4581,6 +4839,17 @@ components:
       - title
       title: CreateNote
       type: object
+    FlagState:
+      properties:
+        flags:
+          additionalProperties:
+            type: boolean
+          title: Flags
+          type: object
+      required:
+      - flags
+      title: FlagState
+      type: object
     FlowCatalog:
       properties:
         engine:
@@ -4801,6 +5070,33 @@ components:
       required:
       - id
       title: RunRef
+      type: object
+    SettingOut:
+      properties:
+        key:
+          title: Key
+          type: string
+        value:
+          title: Value
+        description:
+          title: Description
+          type: string
+      required:
+      - key
+      - value
+      - description
+      title: SettingOut
+      type: object
+    SettingValue:
+      properties:
+        key:
+          maxLength: 120
+          minLength: 1
+          title: Key
+          type: string
+      required:
+      - key
+      title: SettingValue
       type: object
     SignalFlow:
       properties:
