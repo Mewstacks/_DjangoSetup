@@ -203,6 +203,7 @@ API_DOCS_ENABLED = env_bool("API_DOCS_ENABLED", False)
 # never turn a "degraded" answer into a 500. Memoising the result per worker keeps the
 # endpoint from being a cheap way to hammer the database instead.
 HEALTH_READINESS_CACHE_SECONDS = env_int("HEALTH_READINESS_CACHE_SECONDS", 5)
+HEALTH_DETAIL_PUBLIC = env_bool("HEALTH_DETAIL_PUBLIC", False)
 
 SESSION_ENGINE = "django.contrib.sessions.backends.cached_db"
 SESSION_COOKIE_AGE = env_int("SESSION_COOKIE_AGE_SECONDS", 43_200)
@@ -269,7 +270,9 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": env_str("API_THROTTLE_ANON", "30/minute"),
         "user": env_str("API_THROTTLE_USER", "300/minute"),
-        "privacy": env_str("API_THROTTLE_PRIVACY", "10/hour"),
+        "privacy_read": env_str("API_THROTTLE_PRIVACY_READ", "120/hour"),
+        "privacy_write": env_str("API_THROTTLE_PRIVACY_WRITE", "10/hour"),
+        "privacy_withdraw": env_str("API_THROTTLE_PRIVACY_WITHDRAW", "60/hour"),
         "organization_create": env_str("API_THROTTLE_ORGANIZATION_CREATE", "10/day"),
         "login": env_str("API_THROTTLE_LOGIN", "10/minute"),
     },

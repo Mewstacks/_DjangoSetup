@@ -4,10 +4,13 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
 
 from apps.accounts.models import User
+from apps.common.admin import AuditedAdminMixin, SuperuserOnlyFieldsMixin
 
 
 @admin.register(User)
-class UserAdmin(DjangoUserAdmin):
+class UserAdmin(AuditedAdminMixin, SuperuserOnlyFieldsMixin, DjangoUserAdmin):
+    # Without this a staff user with change_user could make themselves a superuser.
+    superuser_only_fields = ("is_staff", "is_superuser", "groups", "user_permissions")
     ordering = ("email",)
     list_display = ("email", "full_name", "is_active", "is_staff", "date_joined")
     list_filter = ("is_active", "is_staff", "is_superuser")

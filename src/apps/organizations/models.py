@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from django.db import models
 from django.db.models.base import ModelBase
@@ -15,9 +16,24 @@ slug_validator = RegexValidator(
 )
 
 
+RESERVED_SLUGS = frozenset(
+    {
+        "admin", "api", "app", "auth", "billing", "docs", "health", "help", "login", "logout",
+        "mail", "mcp", "oauth", "root", "static", "status", "support", "system", "www",
+    }
+)  # fmt: skip
+
+
+def validate_slug_not_reserved(value: str) -> None:
+    if value.strip().casefold() in RESERVED_SLUGS:
+        raise ValidationError("This slug is reserved.")
+
+
 class Organization(UUIDTimeStampedModel):
     name = models.CharField(max_length=160)
-    slug = models.CharField(max_length=63, unique=True, validators=[slug_validator])
+    slug = models.CharField(
+        max_length=63, unique=True, validators=[slug_validator, validate_slug_not_reserved]
+    )
     is_active = models.BooleanField(default=True)
 
     class Meta:

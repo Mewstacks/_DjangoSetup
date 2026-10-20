@@ -352,3 +352,77 @@ def test_native_structlog_events_are_redacted_too() -> None:
     assert "hunter2" not in line
     assert "123.456.789-09" not in line
     assert json.loads(line)["message"] == "login"
+
+
+# --- #16 / #24 / #35: admin, MeView, slugs ----------------------------------------------
+
+
+@pytest.mark.django_db
+def test_staff_without_superuser_cannot_edit_privilege_fields_in_the_admin() -> None:
+    """#16: change_user was enough to grant is_superuser or any permission."""
+    from django.contrib.admin.sites import site
+
+    from apps.accounts.models import User
+
+    model_admin = site._registry[User]
+    staff = User.objects.create_user(email="staff@example.com", password="x" * 14, is_staff=True)
+    request = RequestFactory().get("/admin/")
+    request.user = staff
+    readonly = model_admin.get_readonly_fields(request)
+    for field in ("is_superuser", "is_staff", "groups", "user_permissions"):
+        assert field in readonly
+    staff.is_superuser = True
+    assert "is_superuser" not in model_admin.get_readonly_fields(request)
+
+
+@pytest.mark.django_db
+def test_dsar_and_incidents_cannot_be_deleted_in_the_admin() -> None:
+    from django.contrib.admin.sites import site
+
+    from apps.privacy.models import DataSubjectRequest, PersonalDataIncident
+
+    request = RequestFactory().get("/admin/")
+    for model in (DataSubjectRequest, PersonalDataIncident):
+        assert site._registry[model].has_delete_permission(request) is False
+
+
+@pytest.mark.django_db
+def test_me_patch_does_not_rewrite_columns_it_did_not_change() -> None:
+    """#24: PATCH used a bare save(), so a stale copy could undo a concurrent deactivation."""
+    from rest_framework.test import APIClient
+
+    from apps.accounts.models import User
+
+    user = User.objects.create_user(email="me@example.com", password="x" * 14, full_name="Old")
+    client = APIClient()
+    client.force_authenticate(user)
+    # Simulate the concurrent change another worker commits after this request loaded `user`.
+    User.objects.filter(pk=user.pk).update(is_active=False)
+    response = client.patch("/api/v1/auth/me/", {"full_name": "New"}, format="json")
+    assert response.status_code == 200
+    stored = User.objects.get(pk=user.pk)
+    assert stored.full_name == "New"
+    assert stored.is_active is False
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("slug", ["admin", "api", "www", "MCP"])
+def test_reserved_organization_slugs_are_refused(slug: str) -> None:
+    """#35: tenants could claim slugs that collide with routes or hostnames."""
+    from django.core.exceptions import ValidationError
+
+    from apps.organizations.models import Organization
+
+    with pytest.raises(ValidationError):
+        Organization(name="X", slug=slug).full_clean()
+
+
+@pytest.mark.django_db
+def test_readiness_hides_dependency_detail_from_anonymous_callers() -> None:
+    """#27: the public probe named which dependency was down."""
+    from rest_framework.test import APIClient
+
+    with override_settings(HEALTH_DETAIL_PUBLIC=False):
+        response = APIClient().get("/api/v1/health/ready/")
+    assert response.status_code == 200
+    assert response.data == {"status": "ok"}

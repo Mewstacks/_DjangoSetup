@@ -78,16 +78,20 @@ class ReadinessView(APIView):
             name="Readiness",
             fields={
                 "status": serializers.CharField(),
-                "checks": serializers.DictField(
-                    child=serializers.CharField(),
-                ),
+                "checks": serializers.DictField(child=serializers.CharField(), required=False),
             },
         )
     )
     def get(self, request: object) -> Response:
         checks = readiness_checks()
         healthy = all(result == "ok" for result in checks.values())
+        body: dict[str, object] = {"status": "ok" if healthy else "degraded"}
+        # Which dependency is down is reconnaissance for an anonymous caller; platform probes
+        # only need the status code. Operators opt in with HEALTH_DETAIL_PUBLIC or use
+        # `manage.py doctor`.
+        if settings.HEALTH_DETAIL_PUBLIC:
+            body["checks"] = checks
         return Response(
-            {"status": "ok" if healthy else "degraded", "checks": checks},
+            body,
             status=status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE,
         )

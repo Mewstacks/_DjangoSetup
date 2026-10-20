@@ -110,3 +110,8 @@ compose.override.yaml
 
 # design tooling residue
 .impeccable/
+
+*.dump
+*.sql
+*.sqlite3
+.env.bak-*

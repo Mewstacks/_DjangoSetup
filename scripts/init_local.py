@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import base64
 import secrets
+import shutil
+import time
 from pathlib import Path
 
 
@@ -24,6 +26,12 @@ def main() -> None:
     target = root / ".env"
     if target.exists() and not args.force:
         parser.error(".env already exists; use --force to replace it.")
+    if target.exists():
+        # Replacing .env regenerates the field-encryption key; data encrypted with the old
+        # one becomes unreadable. Keep a copy instead of destroying it silently.
+        backup = target.with_name(f".env.bak-{int(time.time())}")
+        shutil.copy2(target, backup)
+        print(f"Previous .env saved to {backup.name}")
 
     content = (root / ".env.example").read_text(encoding="utf-8")
     content = content.replace(
@@ -35,6 +43,7 @@ def main() -> None:
         "REPLACE_WITH_AN_INDEPENDENT_RANDOM_SECRET",
         secrets.token_urlsafe(48),
     )
+    content = content.replace("local-postgres-password", secrets.token_urlsafe(24))
     if args.sqlite:
         content = content.replace("DB_ENGINE=postgresql", "DB_ENGINE=sqlite")
     target.write_text(content, encoding="utf-8", newline="\n")

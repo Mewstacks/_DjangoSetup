@@ -9,6 +9,7 @@ from config.settings.base import *  # noqa: E402
 DEBUG = True
 ADMIN_ENABLED = True
 API_DOCS_ENABLED = True
+HEALTH_DETAIL_PUBLIC = True
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 AXES_HANDLER = "axes.handlers.database.AxesDatabaseHandler"

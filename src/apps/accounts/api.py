@@ -31,6 +31,14 @@ class MeView(generics.RetrieveUpdateAPIView[User]):
     def get_object(self) -> User:
         return cast(User, self.request.user)
 
+    def perform_update(self, serializer: serializers.BaseSerializer[User]) -> None:
+        # A bare save() rewrites every column from this request's stale copy, which could
+        # undo a concurrent password change or deactivation.
+        instance = cast(User, serializer.instance)
+        for attr, value in serializer.validated_data.items():
+            setattr(instance, attr, value)
+        instance.save(update_fields=[*serializer.validated_data.keys(), "updated_at"])
+
 
 class LoginSerializer(serializers.Serializer[dict[str, Any]]):
     email = serializers.EmailField()

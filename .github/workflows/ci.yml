@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Least privilege: nothing here needs to write to the repository.
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_DB: saas
+          POSTGRES_USER: saas
+          POSTGRES_PASSWORD: ci-only-password
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U saas -d saas" --health-interval 5s
+          --health-timeout 3s --health-retries 20
+      redis:
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 5s --health-timeout 3s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+        with:
+          version: "0.13.3"
+      - run: uv sync --locked --all-extras
+      - name: Lint
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+      - name: Types
+        run: uv run mypy src
+      - name: Tests (sqlite)
+        run: uv run pytest --cov --cov-report=term-missing
+      - name: Tests (postgres + redis)
+        env:
+          TEST_USE_EXTERNAL_SERVICES: "true"
+          DB_ENGINE: postgresql
+          DB_HOST: 127.0.0.1
+          DB_NAME: saas
+          DB_USER: saas
+          DB_PASSWORD: ci-only-password
+          REDIS_URL: redis://127.0.0.1:6379/0
+        run: uv run pytest -q
+      - name: Migrations are in sync
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.test
+        run: uv run python manage.py makemigrations --check --dry-run
+      - name: Production settings pass the deploy check
+        run: uv run python scripts/verify.py --deploy-check-only
+      - name: Dependency audit
+        run: uv run pip-audit -r requirements.txt --no-deps --disable-pip

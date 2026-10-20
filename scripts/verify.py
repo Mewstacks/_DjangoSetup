@@ -56,9 +56,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--fast", action="store_true")
     parser.add_argument("--keep-going", action="store_true")
+    parser.add_argument("--deploy-check-only", action="store_true")
     args = parser.parse_args()
 
     py = sys.executable
+    if args.deploy_check_only:
+        return (
+            0
+            if run("check --deploy", [py, "manage.py", "check", "--deploy"], DEPLOY_CHECK_ENV)
+            else 1
+        )
     steps: list[tuple[str, list[str], dict[str, str] | None]] = [
         ("ruff lint", [py, "-m", "ruff", "check", "."], None),
         ("ruff format", [py, "-m", "ruff", "format", "--check", "."], None),

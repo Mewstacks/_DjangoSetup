@@ -214,3 +214,63 @@ def test_incident_retention_cannot_be_shortened_below_five_years() -> None:
             summary="Test incident",
             retain_until=discovered_at + timedelta(days=30),
         )
+
+
+@pytest.mark.django_db
+def test_withdrawal_works_after_purpose_and_notice_are_retired(
+    user: User, notice: PrivacyNotice, consent_purpose: ProcessingPurpose
+) -> None:
+    """Audit #2: inactive purposes/notices were rejected even for a withdrawal (art. 8 par. 5)."""
+    client = APIClient()
+    client.force_authenticate(user)
+    granted = client.post(
+        "/api/v1/privacy/consents/",
+        {"purpose": str(consent_purpose.id), "notice": str(notice.id), "decision": "granted"},
+        format="json",
+    )
+    assert granted.status_code == 201
+    ProcessingPurpose.objects.filter(pk=consent_purpose.pk).update(active=False)
+    PrivacyNotice.objects.filter(pk=notice.pk).update(active=False)
+
+    again = client.post(
+        "/api/v1/privacy/consents/",
+        {"purpose": str(consent_purpose.id), "notice": str(notice.id), "decision": "granted"},
+        format="json",
+    )
+    withdrawn = client.post(
+        "/api/v1/privacy/consents/",
+        {"purpose": str(consent_purpose.id), "notice": str(notice.id), "decision": "withdrawn"},
+        format="json",
+    )
+    assert again.status_code == 400
+    assert withdrawn.status_code == 201
+
+
+@pytest.mark.django_db
+def test_reads_do_not_consume_the_write_or_withdrawal_budget(
+    user: User, notice: PrivacyNotice, consent_purpose: ProcessingPurpose
+) -> None:
+    """Audit #2: ten GETs used up the shared 10/hour bucket and blocked withdrawal."""
+    from django.core.cache import cache
+
+    cache.clear()
+    client = APIClient()
+    client.force_authenticate(user)
+    for _ in range(15):
+        assert client.get("/api/v1/privacy/purposes/").status_code == 200
+    withdrawn = client.post(
+        "/api/v1/privacy/consents/",
+        {"purpose": str(consent_purpose.id), "notice": str(notice.id), "decision": "withdrawn"},
+        format="json",
+    )
+    assert withdrawn.status_code == 201
+
+
+@pytest.mark.django_db
+def test_active_notice_is_public_and_returns_the_id_consent_needs(notice: PrivacyNotice) -> None:
+    response = APIClient().get("/api/v1/privacy/notice/")
+    assert response.status_code == 200
+    assert response.data["id"] == str(notice.id)
+    assert response.data["version"] == "2026-01"
+    PrivacyNotice.objects.update(active=False)
+    assert APIClient().get("/api/v1/privacy/notice/").status_code == 404
