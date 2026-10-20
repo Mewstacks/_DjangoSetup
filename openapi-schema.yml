@@ -1572,6 +1572,282 @@ paths:
               schema:
                 $ref: '#/components/schemas/Transparency'
           description: ''
+  /api/v1/uploads/:
+    get:
+      operationId: uploads_list
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUploadList'
+          description: ''
+    post:
+      operationId: uploads_create
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      tags:
+      - uploads
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadBody'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+          description: ''
+  /api/v1/uploads{format}:
+    get:
+      operationId: uploads_formatted_list
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedUploadList'
+          description: ''
+    post:
+      operationId: uploads_formatted_create
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - uploads
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/UploadBody'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+          description: ''
+  /api/v1/uploads/{id}/:
+    get:
+      operationId: uploads_retrieve
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+          description: ''
+    delete:
+      operationId: uploads_destroy
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/uploads/{id}{format}:
+    get:
+      operationId: uploads_formatted_retrieve
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Upload'
+          description: ''
+    delete:
+      operationId: uploads_formatted_destroy
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/uploads/{id}/download/:
+    get:
+      operationId: uploads_download_retrieve
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
+  /api/v1/uploads/{id}/download{format}:
+    get:
+      operationId: uploads_download_formatted_retrieve
+      description: 'Files stored for the organization: validated by content, served
+        as attachments.'
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - uploads
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/webhooks/deliveries/:
     get:
       operationId: webhooks_deliveries_list
@@ -4522,6 +4798,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProcessingPurpose'
+    PaginatedUploadList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Upload'
     PatchedEndpoint:
       type: object
       description: 'Never carries the secret: it is returned once, by create and rotate,
@@ -4742,6 +5041,44 @@ components:
           additionalProperties: {}
       required:
       - controller
+    Upload:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        original_name:
+          type: string
+          readOnly: true
+        content_type:
+          type: string
+          readOnly: true
+        size:
+          type: integer
+          readOnly: true
+        sha256:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - content_type
+      - created_at
+      - id
+      - original_name
+      - sha256
+      - size
+    UploadBody:
+      type: object
+      properties:
+        file:
+          type: string
+          format: uri
+      required:
+      - file
     ErrorEnvelope:
       type: object
       required:

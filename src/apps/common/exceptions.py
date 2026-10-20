@@ -70,6 +70,11 @@ class Conflict(DomainError):
     code = "conflict"
 
 
+class TooLarge(DomainError):
+    status = 413
+    code = "payload_too_large"
+
+
 class RateLimited(DomainError):
     status = 429
     code = "rate_limited"

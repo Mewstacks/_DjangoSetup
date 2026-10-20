@@ -43,6 +43,7 @@ LOCAL_APPS = [
     "apps.flows",
     "apps.webhooks",
     "apps.flags",
+    "apps.uploads",
     "apps.observability",
     "apps.apikeys",
     "apps.examples",
@@ -202,6 +203,21 @@ STORAGES = {
 }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Secure uploads. The limit must stay below DATA_UPLOAD_MAX_MEMORY_SIZE (the body cap, which
+# also covers multipart overhead). Extensions are matched against the sniffed content.
+UPLOAD_MAX_BYTES = env_int("UPLOAD_MAX_BYTES", 8 * 1024 * 1024)
+UPLOAD_ALLOWED_EXTENSIONS = env_list(
+    "UPLOAD_ALLOWED_EXTENSIONS",
+    ("pdf", "png", "jpg", "jpeg", "gif", "webp", "txt", "csv", "docx", "xlsx"),
+)
+UPLOAD_MAX_UNCOMPRESSED_BYTES = env_int("UPLOAD_MAX_UNCOMPRESSED_BYTES", 100 * 1024 * 1024)
+UPLOAD_MAX_ZIP_RATIO = env_int("UPLOAD_MAX_ZIP_RATIO", 100)
+UPLOAD_MAX_ZIP_ENTRIES = env_int("UPLOAD_MAX_ZIP_ENTRIES", 2_000)
+# host:port of a clamd daemon; empty disables scanning. When set, an unreachable scanner
+# refuses the upload unless UPLOAD_CLAMAV_REQUIRED=false.
+UPLOAD_CLAMAV_ADDR = env_str("UPLOAD_CLAMAV_ADDR", "")
+UPLOAD_CLAMAV_REQUIRED = env_bool("UPLOAD_CLAMAV_REQUIRED", True)
 # Fail safe: the admin and the interactive API docs are off unless a settings module or
 # the environment opts in. local.py turns them on for development; production keeps them
 # off. A deployment that forgets to use production.py therefore does not expose them.

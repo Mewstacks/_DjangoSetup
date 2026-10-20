@@ -20,6 +20,7 @@ dependencies = [
   "httpx==0.28.1",
   "django-storages[s3]==1.14.6",
   "djangorestframework==3.18.3",
+  "filetype==1.2.0",
   "drf-spectacular==0.30.0",
   "gunicorn==26.2.0",
   "psycopg[binary]==3.3.6",
@@ -108,7 +109,7 @@ warn_unreachable = true
 exclude = ["(/migrations/|/admin\\.py$|/settings/)"]
 
 [[tool.mypy.overrides]]
-module = ["axes", "axes.*", "oauth2_provider", "oauth2_provider.*", "opentelemetry", "opentelemetry.*"]
+module = ["filetype", "filetype.*", "axes", "axes.*", "oauth2_provider", "oauth2_provider.*", "opentelemetry", "opentelemetry.*"]
 ignore_missing_imports = true
 
 [tool.django-stubs]
