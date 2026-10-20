@@ -41,6 +41,7 @@ LOCAL_APPS = [
     "apps.privacy",
     "apps.actions",
     "apps.flows",
+    "apps.webhooks",
     "apps.observability",
     "apps.apikeys",
     "apps.examples",
@@ -342,7 +343,17 @@ PRIVACY_PUBLIC_REQUESTS = env_bool("PRIVACY_PUBLIC_REQUESTS", True)
 ACTIONS_RATE_READ_PER_MINUTE = env_int("ACTIONS_RATE_READ_PER_MINUTE", 300)
 ACTIONS_RATE_WRITE_PER_MINUTE = env_int("ACTIONS_RATE_WRITE_PER_MINUTE", 120)
 # Scopes that exist without an action behind them (for example a CRUD-only resource).
-ACTIONS_EXTRA_SCOPES = tuple(env_list("ACTIONS_EXTRA_SCOPES"))
+ACTIONS_EXTRA_SCOPES = (
+    "webhooks:read",
+    "webhooks:write",
+    "flags:read",
+    "flags:write",
+    "uploads:read",
+    "uploads:write",
+    *env_list("ACTIONS_EXTRA_SCOPES"),
+)
+# Consecutive failed deliveries after which an endpoint is switched off.
+WEBHOOK_DISABLE_AFTER = env_int("WEBHOOK_DISABLE_AFTER", 50)
 API_KEY_PREFIX = env_str("API_KEY_PREFIX", "key")
 # Which channels write undo snapshots, and how long they are kept (they hold business data).
 ACTIONS_JOURNAL_CHANNELS = tuple(env_list("ACTIONS_JOURNAL_CHANNELS", ("mcp",)))

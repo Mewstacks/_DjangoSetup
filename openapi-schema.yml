@@ -1572,6 +1572,623 @@ paths:
               schema:
                 $ref: '#/components/schemas/Transparency'
           description: ''
+  /api/v1/webhooks/deliveries/:
+    get:
+      operationId: webhooks_deliveries_list
+      description: Read-only history, plus redelivery.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDeliveryList'
+          description: ''
+    post:
+      operationId: webhooks_deliveries_create
+      description: Read-only history, plus redelivery.
+      tags:
+      - webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+          description: ''
+  /api/v1/webhooks/deliveries{format}:
+    get:
+      operationId: webhooks_deliveries_formatted_list
+      description: Read-only history, plus redelivery.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDeliveryList'
+          description: ''
+    post:
+      operationId: webhooks_deliveries_formatted_create
+      description: Read-only history, plus redelivery.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Delivery'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+          description: ''
+  /api/v1/webhooks/deliveries/{id}/:
+    get:
+      operationId: webhooks_deliveries_retrieve
+      description: Read-only history, plus redelivery.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+          description: ''
+  /api/v1/webhooks/deliveries/{id}{format}:
+    get:
+      operationId: webhooks_deliveries_formatted_retrieve
+      description: Read-only history, plus redelivery.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Delivery'
+          description: ''
+  /api/v1/webhooks/deliveries/{id}/redeliver/:
+    post:
+      operationId: webhooks_deliveries_redeliver_create
+      description: Read-only history, plus redelivery.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '202':
+          description: No response body
+  /api/v1/webhooks/deliveries/{id}/redeliver{format}:
+    post:
+      operationId: webhooks_deliveries_redeliver_formatted_create
+      description: Read-only history, plus redelivery.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '202':
+          description: No response body
+  /api/v1/webhooks/endpoints/:
+    get:
+      operationId: webhooks_endpoints_list
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEndpointList'
+          description: ''
+    post:
+      operationId: webhooks_endpoints_create
+      description: Endpoints that receive this organization's events.
+      tags:
+      - webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Endpoint'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Endpoint'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Endpoint'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+  /api/v1/webhooks/endpoints{format}:
+    get:
+      operationId: webhooks_endpoints_formatted_list
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedEndpointList'
+          description: ''
+    post:
+      operationId: webhooks_endpoints_formatted_create
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Endpoint'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Endpoint'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Endpoint'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+  /api/v1/webhooks/endpoints/{id}/:
+    get:
+      operationId: webhooks_endpoints_retrieve
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+    patch:
+      operationId: webhooks_endpoints_partial_update
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEndpoint'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEndpoint'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEndpoint'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+    delete:
+      operationId: webhooks_endpoints_destroy
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/webhooks/endpoints/{id}{format}:
+    get:
+      operationId: webhooks_endpoints_formatted_retrieve
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+    patch:
+      operationId: webhooks_endpoints_formatted_partial_update
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedEndpoint'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedEndpoint'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedEndpoint'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+    delete:
+      operationId: webhooks_endpoints_formatted_destroy
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/webhooks/endpoints/{id}/rotate-secret/:
+    post:
+      operationId: webhooks_endpoints_rotate_secret_create
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+  /api/v1/webhooks/endpoints/{id}/rotate-secret{format}:
+    post:
+      operationId: webhooks_endpoints_rotate_secret_formatted_create
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Endpoint'
+          description: ''
+  /api/v1/webhooks/endpoints/{id}/test/:
+    post:
+      operationId: webhooks_endpoints_test_create
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '202':
+          description: No response body
+  /api/v1/webhooks/endpoints/{id}/test{format}:
+    post:
+      operationId: webhooks_endpoints_test_formatted_create
+      description: Endpoints that receive this organization's events.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - webhooks
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '202':
+          description: No response body
   /api/v1/actions/actions.changes/:
     post:
       operationId: action_actions_changes
@@ -3236,6 +3853,104 @@ components:
       - response_summary
       - status
       - target_due_at
+    Delivery:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        endpoint:
+          type: string
+          format: uuid
+          readOnly: true
+        event_type:
+          type: string
+          readOnly: true
+        status:
+          enum:
+          - pending
+          - delivered
+          - dead
+          type: string
+          description: |-
+            * `pending` - Pending
+            * `delivered` - Delivered
+            * `dead` - Gave up
+          x-spec-enum-id: 1b59a07fe7a617df
+          readOnly: true
+        attempts:
+          type: integer
+          readOnly: true
+        next_attempt_at:
+          type: string
+          format: date-time
+          readOnly: true
+        last_status_code:
+          type:
+          - integer
+          - 'null'
+          readOnly: true
+        last_error:
+          type: string
+          readOnly: true
+        delivered_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - attempts
+      - created_at
+      - delivered_at
+      - endpoint
+      - event_type
+      - id
+      - last_error
+      - last_status_code
+      - next_attempt_at
+      - status
+    Endpoint:
+      type: object
+      description: 'Never carries the secret: it is returned once, by create and rotate,
+        and nowhere else.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        url:
+          type: string
+          format: uri
+          maxLength: 500
+        description:
+          type: string
+          maxLength: 200
+        events:
+          description: Event types, or ['*'] for all.
+        is_active:
+          type: boolean
+        failure_streak:
+          type: integer
+          readOnly: true
+        disabled_reason:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - disabled_reason
+      - failure_streak
+      - id
+      - url
     Liveness:
       type: object
       properties:
@@ -3434,6 +4149,52 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/DataSubjectRequest'
+    PaginatedDeliveryList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Delivery'
+    PaginatedEndpointList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Endpoint'
     PaginatedNoteList:
       type: object
       required:
@@ -3503,6 +4264,36 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/ProcessingPurpose'
+    PatchedEndpoint:
+      type: object
+      description: 'Never carries the secret: it is returned once, by create and rotate,
+        and nowhere else.'
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        url:
+          type: string
+          format: uri
+          maxLength: 500
+        description:
+          type: string
+          maxLength: 200
+        events:
+          description: Event types, or ['*'] for all.
+        is_active:
+          type: boolean
+        failure_streak:
+          type: integer
+          readOnly: true
+        disabled_reason:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
     PatchedMe:
       type: object
       properties:

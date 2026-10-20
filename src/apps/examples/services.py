@@ -8,6 +8,7 @@ from apps.actions.context import ActionContext
 from apps.actions.journal import snapshot
 from apps.common.exceptions import Conflict
 from apps.examples.models import Note
+from apps.webhooks.services import emit
 
 SNAPSHOT_FIELDS = ("title", "body", "archived_at")
 
@@ -18,6 +19,7 @@ def create_note(ctx: ActionContext, *, title: str, body: str = "") -> Note:
     )
     ctx.set_target(note)
     ctx.record_change("create", note, after=snapshot(note, SNAPSHOT_FIELDS), label=note.title)
+    emit("note.created", ctx.organization, {"note_id": str(note.pk)})
     return note
 
 
@@ -47,5 +49,6 @@ def archive_note(ctx: ActionContext, note: Note) -> Note:
         ctx.record_change(
             "archive", note, before=before, after=snapshot(note, SNAPSHOT_FIELDS), label=note.title
         )
+        emit("note.archived", ctx.organization, {"note_id": str(note.pk)})
     ctx.set_target(note)
     return note

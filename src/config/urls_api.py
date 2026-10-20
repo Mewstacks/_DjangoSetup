@@ -22,10 +22,13 @@ from apps.privacy.public_api import (
     PublicVerifyView,
     TransparencyView,
 )
+from apps.webhooks.api import DeliveryViewSet, EndpointViewSet
 
 router = DefaultRouter(use_regex_path=False)
 router.register("api-keys", ApiKeyViewSet, basename="api-key")
 router.register("notes", NoteViewSet, basename="note")
+router.register("webhooks/endpoints", EndpointViewSet, basename="webhook-endpoint")
+router.register("webhooks/deliveries", DeliveryViewSet, basename="webhook-delivery")
 router.register("organizations", OrganizationViewSet, basename="organization")
 router.register("privacy/purposes", ProcessingPurposeViewSet, basename="privacy-purpose")
 router.register("privacy/consents", ConsentViewSet, basename="privacy-consent")
