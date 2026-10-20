@@ -114,3 +114,7 @@ compose.override.yaml
 *.sql
 *.sqlite3
 .env.bak-*
+
+# Local deployment secrets
+deploy/compose/prod.env
+deploy/compose/backups/

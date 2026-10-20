@@ -238,6 +238,23 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
 }
+# Uploads and privacy exports: local disk by default; any S3-compatible store (AWS S3, MinIO,
+# Cloudflare R2, Backblaze B2, ...) when S3_BUCKET is set. Credentials come from the standard
+# AWS_* variables or the platform's identity (IAM role, workload identity).
+if env_str("S3_BUCKET"):
+    STORAGES["default"] = {
+        "BACKEND": "storages.backends.s3.S3Storage",
+        "OPTIONS": {
+            "bucket_name": env_str("S3_BUCKET"),
+            "endpoint_url": env_str("S3_ENDPOINT_URL") or None,
+            "region_name": env_str("S3_REGION") or None,
+            "addressing_style": env_str("S3_ADDRESSING_STYLE", "auto"),
+            "default_acl": None,
+            "file_overwrite": False,
+            "querystring_auth": True,
+            "querystring_expire": 300,
+        },
+    }
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

@@ -1,0 +1,166 @@
+# Production-shaped stack on a single host: Caddy (TLS) -> web, plus worker or scheduler.
+#
+#   cp deploy/compose/prod.env.example deploy/compose/prod.env   # fill in secrets
+#   docker compose -f deploy/compose/compose.prod.yaml --env-file deploy/compose/prod.env up -d
+#
+# Without Temporal the `scheduler` service runs the jobs. With it
+# (--profile temporal and TEMPORAL_ENABLED=true) the `worker` does, against the bundled server.
+name: app-prod
+
+x-app: &app
+  image: ${APP_IMAGE:?set APP_IMAGE, for example ghcr.io/you/app:1.0.0}
+  env_file: prod.env
+  restart: unless-stopped
+  read_only: true
+  tmpfs: [/tmp]
+  security_opt: ["no-new-privileges:true"]
+  cap_drop: [ALL]
+  depends_on:
+    postgres: {condition: service_healthy}
+    redis: {condition: service_healthy}
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on: [web]
+
+  migrate:
+    <<: *app
+    command: ["migrate"]
+    restart: "no"
+    environment: {CONTAINER_ROLE: migrate}
+
+  web:
+    <<: *app
+    command: ["web"]
+    expose: ["8000"]
+    volumes: [media:/app/media]
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  scheduler:
+    <<: *app
+    command: ["scheduler"]
+    environment: {CONTAINER_ROLE: scheduler}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+
+  worker:
+    <<: *app
+    profiles: ["temporal"]
+    command: ["worker"]
+    environment: {CONTAINER_ROLE: worker}
+    depends_on:
+      migrate: {condition: service_completed_successfully}
+      temporal: {condition: service_started}
+
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-app}
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+    volumes: [postgres-data:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-app} -d ${DB_NAME:-app}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD:?set REDIS_PASSWORD}", "--maxmemory-policy", "noeviction"]
+    volumes: [redis-data:/data]
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a \"$$REDIS_PASSWORD\" --no-auth-warning ping | grep -q PONG"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+
+  # Nightly logical backup into ./backups on the host (copy it off the machine as well).
+  backup:
+    image: postgres:17-bookworm
+    profiles: ["backup"]
+    restart: unless-stopped
+    environment:
+      PGHOST: postgres
+      PGDATABASE: ${DB_NAME:-app}
+      PGUSER: ${DB_USER:-app}
+      PGPASSWORD: ${DB_PASSWORD}
+      KEEP_DAYS: ${BACKUP_KEEP_DAYS:-14}
+    volumes: [./backups:/backups]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          f=/backups/$$(date -u +%Y%m%dT%H%M%SZ).dump
+          pg_dump --format=custom --no-owner --file="$$f" && echo "backup ok: $$f"
+          find /backups -name '*.dump' -mtime +"$$KEEP_DAYS" -delete
+          sleep 86400
+        done
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  # --profile temporal: a production-shaped Temporal on the same Postgres (own databases).
+  temporal-schema:
+    image: temporalio/admin-tools:1.32.1
+    profiles: ["temporal"]
+    restart: "no"
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        for db in temporal temporal_visibility; do
+          temporal-sql-tool --plugin postgres12 --ep postgres -u ${DB_USER:-app} -p 5432 --pw "$$PGPASSWORD" --db $$db create
+          temporal-sql-tool --plugin postgres12 --ep postgres -u ${DB_USER:-app} -p 5432 --pw "$$PGPASSWORD" --db $$db setup-schema -v 0.0
+        done
+        temporal-sql-tool --plugin postgres12 --ep postgres -u ${DB_USER:-app} -p 5432 --pw "$$PGPASSWORD" --db temporal update-schema -d /etc/temporal/schema/postgresql/v12/temporal/versioned
+        temporal-sql-tool --plugin postgres12 --ep postgres -u ${DB_USER:-app} -p 5432 --pw "$$PGPASSWORD" --db temporal_visibility update-schema -d /etc/temporal/schema/postgresql/v12/visibility/versioned
+    depends_on:
+      postgres: {condition: service_healthy}
+
+  temporal:
+    image: temporalio/server:1.32.1
+    profiles: ["temporal"]
+    restart: unless-stopped
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_USER: ${DB_USER:-app}
+      POSTGRES_PWD: ${DB_PASSWORD}
+      POSTGRES_SEEDS: postgres
+      DBNAME: temporal
+      VISIBILITY_DBNAME: temporal_visibility
+    expose: ["7233"]
+    depends_on:
+      temporal-schema: {condition: service_completed_successfully}
+
+  temporal-ui:
+    image: temporalio/ui:2.56.0
+    profiles: ["temporal"]
+    restart: unless-stopped
+    environment:
+      TEMPORAL_ADDRESS: temporal:7233
+    ports: ["127.0.0.1:8233:8080"]
+    depends_on: [temporal]
+
+volumes:
+  caddy-data:
+  caddy-config:
+  media:
+  postgres-data:
+  redis-data:

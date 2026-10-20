@@ -1,0 +1,16 @@
+# TLS terminates here; Caddy gets and renews certificates for {$SITE_ADDRESS} on its own.
+# Local trial without a domain: SITE_ADDRESS=localhost (self-signed) or :80 behind another proxy.
+{$SITE_ADDRESS:localhost} {
+	encode zstd gzip
+	request_body {
+		max_size 12MB
+	}
+	header {
+		-Server
+		Strict-Transport-Security "max-age=31536000"
+	}
+	reverse_proxy web:8000 {
+		health_uri /api/v1/health/live/
+		health_interval 15s
+	}
+}
