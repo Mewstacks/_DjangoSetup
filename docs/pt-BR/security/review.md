@@ -22,6 +22,7 @@ listados abaixo.
 | Webhooks | A listagem de endpoints vazava o segredo decifrado | Segredo só em create/rotate; teste adicionado |
 | Contas | O login legado podia contornar MFA e verificação de e-mail | Recusa essas contas; login do admin via allauth |
 | Páginas | A página de sessões quebrava (faltava `humanize`) | App adicionado; testes de render de toda página de conta |
+| Consentimento OAuth | CSP `form-action 'self'` bloqueia o redirect pós-consentimento no Chrome | Só a view de consentimento omite a diretiva; teste garante que as demais páginas a mantêm |
 
 ## Itens em aberto
 

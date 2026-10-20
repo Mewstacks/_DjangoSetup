@@ -215,3 +215,26 @@ def test_a_401_tells_the_client_where_to_discover_oauth(mcp_app: McpDispatcher) 
             assert "notes:read" in body["scopes_supported"]
 
     run(scenario)
+
+
+def test_only_the_consent_page_may_post_to_another_origin(user: User, application: object) -> None:
+    """Chrome checks form-action on the redirect after a form post; consent must be allowed to
+    return to the client, every other page must keep the restriction."""
+    client = Client()
+    client.force_login(user)
+    consent = client.get(
+        "/o/authorize/",
+        {
+            "response_type": "code",
+            "client_id": application.client_id,  # type: ignore[attr-defined]
+            "redirect_uri": "http://127.0.0.1:9999/callback",
+            "code_challenge": "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM",
+            "code_challenge_method": "S256",
+            "scope": "notes:read",
+        },
+    )
+    assert consent.status_code == 200, consent.content[:300]
+    assert "form-action" not in consent.headers["Content-Security-Policy"]
+    assert b"127.0.0.1:9999/callback" in consent.content  # the destination is shown
+    other = client.get("/accounts/email/")
+    assert "form-action 'self'" in other.headers["Content-Security-Policy"]

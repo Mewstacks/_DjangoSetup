@@ -21,6 +21,7 @@ regression test in `tests/test_security_regressions.py`, except those carried be
 | Webhooks | Endpoint list leaked the decrypted secret | Secret returned only on create/rotate; test added |
 | Accounts | Legacy login could bypass MFA and e-mail verification | Refuses such accounts; admin login via allauth |
 | Pages | Sessions page crashed (missing `humanize`) | App added; render tests for every account page |
+| OAuth consent | CSP `form-action 'self'` blocks the post-consent redirect in Chrome | Consent view alone omits the directive; test asserts every other page keeps it |
 
 ## Open items
 
