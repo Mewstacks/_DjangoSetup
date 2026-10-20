@@ -44,7 +44,9 @@ otel = [
   "opentelemetry-instrumentation-httpx==0.66b1",
 ]
 dev = [
+  "bandit==1.9.4",
   "coverage==7.16.2",
+  "cyclonedx-bom==7.5.0",
   "django-stubs==6.1.2",
   "djangorestframework-stubs==3.18.1",
   "mypy==2.4.0",
