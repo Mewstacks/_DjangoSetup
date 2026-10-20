@@ -7,7 +7,7 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PYTHONUNBUFFERED=1
 
 WORKDIR /app
-RUN python -m pip install --no-cache-dir uv==0.12.0
+RUN python -m pip install --no-cache-dir uv==0.13.3
 
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src

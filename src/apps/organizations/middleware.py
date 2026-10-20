@@ -6,14 +6,12 @@ from collections.abc import Callable
 from django.http import HttpRequest, HttpResponse, JsonResponse
 
 from apps.common.context import organization_id_var
+from apps.common.exceptions import error_body
 from apps.organizations.models import Membership
 
 
 def _error(status: int, code: str, detail: str) -> JsonResponse:
-    return JsonResponse(
-        {"error": {"status": status, "code": code, "detail": detail}},
-        status=status,
-    )
+    return JsonResponse(error_body(status, code, detail), status=status)
 
 
 class OrganizationContextMiddleware:

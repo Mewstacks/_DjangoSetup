@@ -12,7 +12,9 @@ def test_health_endpoints_are_public_and_correlated() -> None:
     client = APIClient()
     live = client.get("/api/v1/health/live/", HTTP_X_REQUEST_ID="test-request-123")
     assert live.status_code == 200
-    assert live["X-Request-ID"] == "test-request-123"
+    # The id is minted by the server; a client-chosen value must not become the log key.
+    assert live["X-Request-ID"] != "test-request-123"
+    assert len(live["X-Request-ID"]) == 36
 
     ready = client.get("/api/v1/health/ready/")
     assert ready.status_code == 200

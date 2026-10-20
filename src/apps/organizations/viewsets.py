@@ -29,7 +29,7 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet[ScopedModelT]):
         return cast(Organization, self.request.organization)  # type: ignore[attr-defined]
 
     def get_queryset(self) -> QuerySet[ScopedModelT]:
-        queryset = cast(QuerySet[ScopedModelT], self.queryset)
+        queryset = cast(QuerySet[ScopedModelT], self.queryset)  # type: ignore[arg-type]
         if getattr(self, "swagger_fake_view", False):
             return queryset.none()
         return queryset.filter(organization=self.get_organization())

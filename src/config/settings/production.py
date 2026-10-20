@@ -1,61 +1,67 @@
 from __future__ import annotations
 
-import base64
-
 from django.core.exceptions import ImproperlyConfigured
 
+from config.settings import validators
 from config.settings.base import *
-from config.settings.env import env_bool, env_int, env_str
+from config.settings.env import env_bool, env_int, env_list, env_str
 
 DEBUG = False
 MIDDLEWARE.insert(1, "whitenoise.middleware.WhiteNoiseMiddleware")
 
-fly_app_name = env_str("FLY_APP_NAME")
-if fly_app_name:
-    fly_hostname = f"{fly_app_name}.fly.dev"
-    if fly_hostname not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(fly_hostname)
-    fly_origin = f"https://{fly_hostname}"
-    if fly_origin not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(fly_origin)
+# No default hosts in production: the local defaults in base.py would pass a lazy check.
+ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS")
+validators.check_hosts(ALLOWED_HOSTS)
+validators.check_origins("DJANGO_CSRF_TRUSTED_ORIGINS", CSRF_TRUSTED_ORIGINS)
+validators.check_origins("DJANGO_CORS_ALLOWED_ORIGINS", CORS_ALLOWED_ORIGINS)
 
-if len(SECRET_KEY) < 50 or SECRET_KEY.startswith("insecure-"):
-    raise ImproperlyConfigured(
-        "DJANGO_SECRET_KEY must be a random value of at least 50 characters."
-    )
-if "*" in ALLOWED_HOSTS or not ALLOWED_HOSTS:
-    raise ImproperlyConfigured("Set explicit DJANGO_ALLOWED_HOSTS values; wildcards are forbidden.")
-if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":
-    raise ImproperlyConfigured("Production requires PostgreSQL.")
-if DATABASES["default"].get("OPTIONS", {}).get("sslmode") == "disable":
-    # DB_SSL_REQUIRE uses setdefault, so an explicit sslmode=disable in DATABASE_URL would
-    # otherwise win. Refuse it: require DB TLS (DB_SSL_REQUIRE=true or an sslmode in the URL),
-    # or provide transport security at the network layer and drop the explicit disable.
-    raise ImproperlyConfigured("Production database must not use sslmode=disable.")
-if not redis_url:
-    raise ImproperlyConfigured("Production requires REDIS_URL.")
-if not FIELD_ENCRYPTION_KEYS or not FIELD_ENCRYPTION_ACTIVE_KEY_ID:
-    raise ImproperlyConfigured("Production field encryption keys are required.")
-if FIELD_ENCRYPTION_ACTIVE_KEY_ID not in FIELD_ENCRYPTION_KEYS:
-    raise ImproperlyConfigured("The active field encryption key ID is missing from the key ring.")
-for key_id, encoded_key in FIELD_ENCRYPTION_KEYS.items():
+validators.check_secret("DJANGO_SECRET_KEY", SECRET_KEY, min_length=50)
+validators.check_secret("PRIVACY_HMAC_KEY", PRIVACY_HMAC_KEY, min_length=32)
+validators.check_key_ring(FIELD_ENCRYPTION_ACTIVE_KEY_ID, FIELD_ENCRYPTION_KEYS)
+validators.check_distinct_secrets(
+    DJANGO_SECRET_KEY=SECRET_KEY,
+    PRIVACY_HMAC_KEY=PRIVACY_HMAC_KEY,
+    **{
+        f"FIELD_ENCRYPTION_KEYS[{key_id}]": value for key_id, value in FIELD_ENCRYPTION_KEYS.items()
+    },
+)
+
+validators.check_database(
+    DATABASES["default"], allow_insecure_transport=env_bool("DB_ALLOW_INSECURE_TRANSPORT", False)
+)
+validators.check_redis_url(redis_url, allow_insecure=env_bool("REDIS_ALLOW_INSECURE", False))
+validators.check_proxy(
+    proxy_ips=TRUSTED_PROXY_IPS,
+    proxy_count=TRUSTED_PROXY_COUNT,
+    direct=env_bool("TRUSTED_PROXY_DIRECT", False),
+)
+for _entry in TRUSTED_PROXY_IPS:
+    # A typo'd CIDR used to be dropped silently, trusting fewer proxies than intended.
+    from apps.common.network import parse_trusted_networks
+
     try:
-        decoded_key = base64.urlsafe_b64decode(encoded_key)
-    except (TypeError, ValueError) as exc:
-        raise ImproperlyConfigured(f"Field encryption key {key_id!r} is invalid.") from exc
-    if len(decoded_key) != 32:
-        raise ImproperlyConfigured(
-            f"Field encryption key {key_id!r} must decode to exactly 32 bytes."
-        )
-if len(PRIVACY_HMAC_KEY) < 32:
-    raise ImproperlyConfigured("PRIVACY_HMAC_KEY must contain at least 32 random characters.")
+        parse_trusted_networks([_entry])
+    except ValueError as exc:
+        raise ImproperlyConfigured(f"TRUSTED_PROXY_IPS entry {_entry!r} is not a CIDR.") from exc
 
+# The admin and the interactive docs are off unless asked for, and asking is not enough on
+# its own: the admin additionally needs an IP allowlist, the docs need an admin session.
 ADMIN_ENABLED = env_bool("ADMIN_ENABLED", False)
 API_DOCS_ENABLED = env_bool("API_DOCS_ENABLED", False)
-DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env_bool("DB_PGBOUNCER", True)
+if ADMIN_ENABLED and not ADMIN_ALLOWED_IPS:
+    raise ImproperlyConfigured("ADMIN_ENABLED in production requires ADMIN_ALLOWED_IPS.")
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env_bool("DB_PGBOUNCER", False)
+
+if env_str("LOG_LEVEL", "INFO").upper() == "DEBUG":
+    raise ImproperlyConfigured("LOG_LEVEL=DEBUG is not allowed in production.")
 
 SECURE_SSL_REDIRECT = True
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# Probes come from the platform without TLS or the forwarded header; redirecting them would
+# make every health check fail. Everything else is redirected.
+SECURE_REDIRECT_EXEMPT = [r"^api/v1/health/"]
+if TRUSTED_PROXY_IPS or TRUSTED_PROXY_COUNT > 0:
+    # Only trust the forwarded scheme when the deployment declared a proxy in front of it.
+    SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 SESSION_COOKIE_SECURE = True
 CSRF_COOKIE_SECURE = True
 for cookie_name, samesite in (
@@ -64,9 +70,12 @@ for cookie_name, samesite in (
 ):
     if samesite not in {"Lax", "Strict", "None"}:
         raise ImproperlyConfigured(f"{cookie_name} must be 'Lax', 'Strict', or 'None'.")
+# includeSubdomains and preload are commitments about the whole parent domain, so they are
+# opt-in: turning them on by default would break sibling subdomains on a shared domain.
 SECURE_HSTS_SECONDS = env_int("SECURE_HSTS_SECONDS", 31_536_000)
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", True)
-SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", True)
+validators.check_hsts(SECURE_HSTS_SECONDS)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env_bool("SECURE_HSTS_INCLUDE_SUBDOMAINS", False)
+SECURE_HSTS_PRELOAD = env_bool("SECURE_HSTS_PRELOAD", False)
 
 REST_FRAMEWORK["DEFAULT_RENDERER_CLASSES"] = ["rest_framework.renderers.JSONRenderer"]
 
@@ -75,7 +84,8 @@ STORAGES["staticfiles"] = {
 }
 
 media_bucket = env_str("BUCKET_NAME") or env_str("AWS_MEDIA_BUCKET")
-if env_bool("OBJECT_STORAGE_REQUIRED", False) and not media_bucket:
+# Without a bucket, media would land on the container's ephemeral disk and vanish on restart.
+if env_bool("OBJECT_STORAGE_REQUIRED", True) and not media_bucket:
     raise ImproperlyConfigured(
         "Production object storage is required but BUCKET_NAME/AWS_MEDIA_BUCKET is missing."
     )
@@ -91,7 +101,7 @@ if media_bucket:
         "BACKEND": "storages.backends.s3.S3Storage",
         "OPTIONS": {
             "bucket_name": media_bucket,
-            "region_name": env_str("AWS_REGION", "auto"),
+            "region_name": env_str("AWS_REGION") or None,
             "endpoint_url": env_str("AWS_ENDPOINT_URL_S3") or None,
             "default_acl": None,
             "querystring_auth": True,
@@ -100,15 +110,20 @@ if media_bucket:
         },
     }
 
-EMAIL_BACKEND = env_str(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.smtp.EmailBackend",
-)
-EMAIL_HOST = env_str("EMAIL_HOST", "email-smtp.sa-east-1.amazonaws.com")
-EMAIL_PORT = env_int("EMAIL_PORT", 587)
-EMAIL_USE_TLS = env_bool("EMAIL_USE_TLS", True)
-EMAIL_HOST_USER = env_str("EMAIL_HOST_USER")
-EMAIL_HOST_PASSWORD = env_str("EMAIL_HOST_PASSWORD")
+email_backend = env_str("EMAIL_BACKEND", "django.core.mail.backends.smtp.EmailBackend")
+validators.check_email_backend(email_backend)
+MAILERS = {
+    "default": {
+        "BACKEND": email_backend,
+        "OPTIONS": {
+            "host": env_str("EMAIL_HOST", "localhost"),
+            "port": env_int("EMAIL_PORT", 587),
+            "use_tls": env_bool("EMAIL_USE_TLS", True),
+            "username": env_str("EMAIL_HOST_USER"),
+            "password": env_str("EMAIL_HOST_PASSWORD"),
+        },
+    }
+}
 
 sentry_enabled = env_bool("SENTRY_ENABLED", True)
 sentry_dsn = env_str("SENTRY_DSN")
@@ -124,7 +139,7 @@ if sentry_enabled:
     sentry_sdk.init(
         dsn=sentry_dsn,
         environment=env_str("SENTRY_ENVIRONMENT", "production"),
-        release=env_str("SENTRY_RELEASE") or env_str("FLY_IMAGE_REF") or None,
+        release=env_str("SENTRY_RELEASE") or None,
         send_default_pii=False,
         before_send=before_send,
         before_send_transaction=before_send_transaction,

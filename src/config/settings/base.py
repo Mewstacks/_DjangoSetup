@@ -15,6 +15,7 @@ SECRET_KEY = env_str(
     "insecure-local-only-key-change-before-production",
 )
 DEBUG = False
+# Defaults are for local work only; production.py reads the variable without a default.
 ALLOWED_HOSTS = env_list("DJANGO_ALLOWED_HOSTS", ("localhost", "127.0.0.1"))
 CSRF_TRUSTED_ORIGINS = env_list("DJANGO_CSRF_TRUSTED_ORIGINS")
 
@@ -45,6 +46,8 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "apps.common.middleware.RequestContextMiddleware",
+    "apps.common.middleware.AdminIPAllowlistMiddleware",
+    "apps.common.middleware.NoStoreMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -125,8 +128,7 @@ else:
     raise RuntimeError("DB_ENGINE must be either 'sqlite' or 'postgresql'.")
 
 redis_url = env_str("REDIS_URL")
-FLY_APP_NAME = env_str("FLY_APP_NAME")
-deployment_name = env_str("APP_NAME") or FLY_APP_NAME or "saas"
+deployment_name = env_str("APP_NAME") or "saas"
 
 # Host-agnostic client-IP resolution (see apps.common.network.client_ip). Set whichever
 # matches the deployment; both default to trusting only the direct peer.
@@ -162,7 +164,6 @@ AUTHENTICATION_BACKENDS = [
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.Argon2PasswordHasher",
     "django.contrib.auth.hashers.PBKDF2PasswordHasher",
-    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
 ]
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -193,6 +194,9 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # the environment opts in. local.py turns them on for development; production keeps them
 # off. A deployment that forgets to use production.py therefore does not expose them.
 ADMIN_ENABLED = env_bool("ADMIN_ENABLED", False)
+# CIDRs allowed to reach /admin/. Empty means no restriction (local development only);
+# production refuses to enable the admin without a list.
+ADMIN_ALLOWED_IPS = env_list("ADMIN_ALLOWED_IPS")
 API_DOCS_ENABLED = env_bool("API_DOCS_ENABLED", False)
 
 # The readiness probe stays unauthenticated and unthrottled so that a cache outage can
@@ -226,10 +230,10 @@ SECURE_CSP = {
     "font-src": [CSP.SELF],
     "form-action": [CSP.SELF],
     "frame-ancestors": [CSP.NONE],
-    "img-src": [CSP.SELF, "data:", "https:"],
+    "img-src": [CSP.SELF, "data:"],
     "object-src": [CSP.NONE],
     "script-src": [CSP.SELF],
-    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE],
+    "style-src": [CSP.SELF],
 }
 
 CORS_ALLOWED_ORIGINS = env_list("DJANGO_CORS_ALLOWED_ORIGINS")
@@ -282,7 +286,8 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+# Django 6.1 MAILERS replaces EMAIL_BACKEND/EMAIL_* (removed in Django 2028).
+MAILERS = {"default": {"BACKEND": "django.core.mail.backends.console.EmailBackend", "OPTIONS": {}}}
 DEFAULT_FROM_EMAIL = env_str("DEFAULT_FROM_EMAIL", "no-reply@localhost")
 SERVER_EMAIL = env_str("SERVER_EMAIL", DEFAULT_FROM_EMAIL)
 
@@ -300,10 +305,9 @@ PRIVACY_HMAC_KEY = env_str("PRIVACY_HMAC_KEY")
 PRIVACY_REQUEST_TARGET_DAYS = env_int("PRIVACY_REQUEST_TARGET_DAYS", 15)
 
 AXES_ENABLED = True
-AXES_CLIENT_IP_CALLABLE = "apps.common.network.client_ip"
+AXES_CLIENT_IP_CALLABLE = "apps.common.network.client_ip_bucket"
 AXES_FAILURE_LIMIT = env_int("AXES_FAILURE_LIMIT", 5)
 AXES_COOLOFF_TIME = timedelta(minutes=env_int("AXES_COOLOFF_MINUTES", 30))
-AXES_USE_ATTEMPT_EXPIRATION = True
 AXES_RESET_ON_SUCCESS = True
 # (username, ip_address) alone never stops a distributed brute force against one
 # account. Adding the username-only group closes that, at the cost of letting a third
@@ -317,23 +321,7 @@ AXES_USERNAME_FORM_FIELD = "email"
 AXES_USERNAME_CALLABLE = "apps.accounts.security.axes_username"
 AXES_SENSITIVE_PARAMETERS = ["password"]
 AXES_HTTP_RESPONSE_CODE = 429
-AXES_ENABLE_RETRY_AFTER_HEADER = True
 AXES_LOCKOUT_CALLABLE = "apps.accounts.security.axes_lockout_response"
-CELERY_BROKER_URL = env_str("CELERY_BROKER_URL", redis_url or "memory://")
-CELERY_RESULT_BACKEND = env_str("CELERY_RESULT_BACKEND", redis_url or "cache+memory://")
-CELERY_TASK_DEFAULT_QUEUE = env_str("CELERY_QUEUE_NAME", f"{deployment_name}-default")
-CELERY_TASK_SERIALIZER = "json"
-CELERY_ACCEPT_CONTENT = ["json"]
-CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = TIME_ZONE
-CELERY_TASK_ACKS_LATE = True
-CELERY_TASK_REJECT_ON_WORKER_LOST = True
-CELERY_WORKER_PREFETCH_MULTIPLIER = 1
-CELERY_TASK_TRACK_STARTED = True
-CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
-CELERY_TASK_SOFT_TIME_LIMIT = env_int("CELERY_TASK_SOFT_TIME_LIMIT_SECONDS", 270)
-CELERY_TASK_TIME_LIMIT = env_int("CELERY_TASK_TIME_LIMIT_SECONDS", 300)
-CELERY_WORKER_MAX_TASKS_PER_CHILD = env_int("CELERY_WORKER_MAX_TASKS_PER_CHILD", 500)
 
 LOGGING = {
     "version": 1,

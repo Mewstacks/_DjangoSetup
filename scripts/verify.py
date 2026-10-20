@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import os
 import subprocess
 import sys
@@ -18,19 +19,26 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 
+
 # `check --deploy` needs production settings, which refuse to boot without real-looking secrets.
 # These values only satisfy the validators for the check; nothing is ever deployed with them.
+def _random_looking(label: str, length: int) -> str:
+    return (hashlib.sha256(label.encode()).hexdigest() * 3)[:length]
+
+
 DEPLOY_CHECK_ENV = {
     "DJANGO_SETTINGS_MODULE": "config.settings.production",
-    "DJANGO_SECRET_KEY": "verify-" + "k" * 60,
-    "DJANGO_ALLOWED_HOSTS": "example.com",
-    "DATABASE_URL": "postgres://u:p@db.example.com:5432/app?sslmode=require",
-    "REDIS_URL": "rediss://:p@cache.example.com:6379/0",
+    "DJANGO_SECRET_KEY": _random_looking("django", 64),
+    "DJANGO_ALLOWED_HOSTS": "app.verify.test",
+    "DATABASE_URL": "postgres://u:p@db.verify.test:5432/app?sslmode=require",
+    "REDIS_URL": "rediss://:p@cache.verify.test:6379/0",
     "FIELD_ENCRYPTION_ACTIVE_KEY_ID": "v1",
     "FIELD_ENCRYPTION_KEYS": '{"v1": "'
-    + base64.urlsafe_b64encode(bytes(range(32))).decode()
+    + base64.urlsafe_b64encode(hashlib.sha256(b"field-key").digest()).decode()
     + '"}',
-    "PRIVACY_HMAC_KEY": "h" * 48,
+    "PRIVACY_HMAC_KEY": _random_looking("hmac", 48),
+    "TRUSTED_PROXY_COUNT": "1",
+    "BUCKET_NAME": "verify-bucket",
     "SENTRY_ENABLED": "false",
 }
 

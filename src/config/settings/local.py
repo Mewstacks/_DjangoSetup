@@ -11,5 +11,14 @@ ADMIN_ENABLED = True
 API_DOCS_ENABLED = True
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
-EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 AXES_HANDLER = "axes.handlers.database.AxesDatabaseHandler"
+
+# Swagger UI and the DRF browsable API load inline styles and CDN assets.
+from django.utils.csp import CSP  # noqa: E402
+
+SECURE_CSP = {
+    **SECURE_CSP,
+    "style-src": [CSP.SELF, CSP.UNSAFE_INLINE, "https://cdn.jsdelivr.net"],
+    "script-src": [CSP.SELF, CSP.UNSAFE_INLINE, "https://cdn.jsdelivr.net"],
+    "img-src": [CSP.SELF, "data:", "https://cdn.jsdelivr.net"],
+}

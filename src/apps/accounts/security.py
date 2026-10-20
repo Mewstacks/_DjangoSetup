@@ -5,6 +5,8 @@ from typing import Any
 from django.conf import settings
 from django.http import HttpRequest, JsonResponse
 
+from apps.common.exceptions import error_body
+
 
 def axes_username(request: HttpRequest | None, credentials: dict[str, Any] | None = None) -> str:
     """Resolve the account being attacked for django-axes.
@@ -36,13 +38,9 @@ def axes_lockout_response(
 ) -> JsonResponse:
     retry_after = int(settings.AXES_COOLOFF_TIME.total_seconds())
     result = JsonResponse(
-        {
-            "error": {
-                "status": 429,
-                "code": "authentication_locked",
-                "detail": "Too many authentication attempts. Try again later.",
-            }
-        },
+        error_body(
+            429, "authentication_locked", "Too many authentication attempts. Try again later."
+        ),
         status=429,
     )
     result["Retry-After"] = str(retry_after)
