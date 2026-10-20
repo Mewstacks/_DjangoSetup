@@ -330,7 +330,11 @@ def capabilities() -> list[dict[str, Any]]:
         ("Signals to a running flow", False, True),
         ("Queries, child workflows, continue-as-new", False, True),
         ("Cancel a running flow", False, True),
-        ("Scheduled jobs", "cron / CronJob + manage.py run_job", "Temporal Schedules"),
+        (
+            "Scheduled jobs",
+            "manage.py run_scheduler (one replica) or cron + run_job",
+            "Temporal Schedules",
+        ),
         ("Visibility UI and history", False, True),
     ]
     return [{"capability": c, "local": loc, "temporal": tmp} for c, loc, tmp in rows]

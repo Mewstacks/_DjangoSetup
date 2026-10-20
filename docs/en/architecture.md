@@ -1,61 +1,49 @@
 # Architecture
 
-[Versão em português](../pt-BR/arquitetura.md)
+```
+ Client ── REST /api/v1 ─┐
+ Agent ─── MCP /mcp ─────┤  ActionContext (actor, organization, role, scopes, channel, request id)
+ Flow ──── Temporal ─────┼─► apps.actions.invoke()
+ CLI ───── manage.py ────┘    scope → role → rate limit → validate → idempotency
+                              → transaction → audit → undo journal → log
+```
 
-The starter is a modular monolith. That is deliberate: database transactions, privacy
-operations, migrations, and authorization remain understandable while the web and worker
-processes scale horizontally. Split services only after measurements show a real boundary.
+## Apps
 
-## Runtime
+| App | Role |
+|---|---|
+| `actions` | The kernel: `@action` registry, runtime, REST and MCP adapters, undo journal, agent ledger |
+| `apikeys`, `oauth`, `accounts` | Credentials: API keys, OAuth 2.1 (PKCE, dynamic registration), allauth sign-in with MFA |
+| `organizations` | Tenants, memberships, roles; `OrganizationScopedViewSet`; `OrgScopedPrimaryKeyRelatedField` |
+| `flows` | Flows and jobs on Temporal or the local engine; `TemporalTaskBackend` for `django.tasks` |
+| `audit` | Append-only, hash-chained audit trail per organization |
+| `privacy` | LGPD: data catalog, consent, requests, retention, incidents, RoPA |
+| `webhooks`, `flags`, `uploads` | Outbound events with an outbox, feature flags and settings, validated files |
+| `observability` | structlog pipeline with redaction, OpenTelemetry, `doctor`, health |
+| `examples` | Notes: a complete reference resource (remove it with the checklist in the add-an-action guide) |
 
-- `web`: stateless Django ASGI instances behind Fly Proxy. Session state, throttles, and caches
-  live in Redis; persistent data lives in PostgreSQL or private object storage.
-- `worker`: Celery consumers using the same image and code. Tasks must be idempotent, retry with
-  bounded exponential backoff, and receive record IDs rather than personal-data payloads.
-- Managed PostgreSQL: primary source of truth, pooled connections, HA, backups, encryption in
-  transit and at rest.
-- Redis: cache, session acceleration, authentication lockouts, throttles, and queue broker.
-  Redis is never the source of truth for business or privacy records.
-- Private object storage: user-generated files and privacy exports through short-lived signed
-  URLs. Never serve uploads from the application origin.
-- Sentry and JSON logs: operational telemetry with PII disabled/scrubbed and request IDs for
-  correlation.
+## Rules the code enforces
 
-The public readiness endpoint memoizes results per worker for five seconds, reducing PostgreSQL
-and Redis load without depending on Redis-backed throttling.
+- **One door to tenant data.** Actions read rows only through `ctx.scoped(Model)` / `ctx.get`;
+  a test fails on `Model.objects` in `actions.py`. Writable foreign keys use
+  `OrgScopedPrimaryKeyRelatedField`.
+- **Default deny for keys.** A key or OAuth token acts only inside its scopes; the role of the
+  membership is read on every call, never copied into a token.
+- **Every model is classified.** A test fails until each model is declared personal or not in
+  `<app>/privacy.py`.
+- **No secrets in logs.** Redaction runs at the end of the logging pipeline, so third-party
+  loggers are covered as well.
+- **Fails closed in production.** `config.settings.production` refuses weak secrets, plain
+  database or Redis transport, wildcard hosts and an undeclared proxy.
 
-## Application boundaries
+## Settings modules
 
-- `accounts`: identity only. Add OIDC/passkeys here without coupling it to product domains.
-- `organizations`: optional tenant, membership, roles, context middleware, and the abstract
-  `OrganizationScopedModel`.
-- `privacy`: processing purposes, notices, consent ledger, subject requests, and incident
-  records. Product apps register their own export/erasure logic rather than using unsafe
-  reflection-based deletion.
-- `audit`: immutable security/business events. Metadata keys that commonly contain PII or
-  secrets are rejected.
-- `common`: encryption, request context, error envelope, health checks, safe logging, and
-  Sentry scrubbing.
+`config.settings.base` (shared), `local` (development), `test`, `production` (strict, the image
+default). Variables are listed in the [generated reference](reference/env-vars.md).
 
-## Tenant invariant
+## Request path in production
 
-An organization UUID supplied by the client is only a selector. Middleware resolves it through
-the authenticated user's active membership and returns `404` on failure. Product endpoints
-must then require organization context and scope reads/writes to `request.organization`. Global
-objects such as users, privacy purposes, and notices are intentionally outside tenant scope.
-
-Organization listing resolves the current role with a subquery/annotation rather than loading
-every member. Query count remains bounded as membership grows.
-
-For products with high tenant-isolation risk, add PostgreSQL row-level security as a second
-layer after the product schema is known. Do not add generic RLS policies that can silently
-bypass background jobs or migrations.
-
-## Scale path
-
-1. Increase web/worker Machines independently and keep database/Redis in `gru`.
-2. Measure p95 latency, query count, queue age, database CPU/connections, and error rate.
-3. Add indexes from real query plans; cache only safe, non-sensitive derived values.
-4. Introduce read replicas or regional services only when consistency and international
-   transfer implications are explicitly designed.
-5. Extract a service only when it has an independent scaling, ownership, or failure boundary.
+Proxy/ingress (TLS) → gunicorn with uvicorn workers → `BodyLimit` ASGI middleware → Django
+middleware (request context, admin allow-list, sessions, CSRF, organization context, CSP) → DRF
+(API key, session token or session auth, scope and role permissions, throttles) → action runtime.
+`/mcp` is mounted beside Django in the ASGI app and shares the same pre-flight checks.

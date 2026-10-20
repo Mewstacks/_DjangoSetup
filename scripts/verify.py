@@ -85,6 +85,7 @@ def main() -> int:
         ("action catalog drift", [py, "manage.py", "actions_catalog", "--check"], test_env)
     )
     steps.append(("openapi drift", [py, "scripts/check_openapi.py"], test_env))
+    steps.append(("reference docs drift", [py, "scripts/gen_docs.py", "--check"], test_env))
     if not args.fast:
         steps.append(("check --deploy", [py, "manage.py", "check", "--deploy"], DEPLOY_CHECK_ENV))
 
