@@ -1,0 +1,101 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "saas-django-backend"
+version = "0.1.0"
+description = "Security-first, LGPD-aware reusable Django SaaS backend"
+readme = "README.md"
+requires-python = ">=3.12,<3.15"
+dependencies = [
+  "Django==6.0.7",
+  "argon2-cffi==25.1.0",
+  "celery==5.6.3",
+  "cryptography==49.0.0",
+  "django-axes==8.3.1",
+  "django-cors-headers==4.9.0",
+  "django-redis==7.0.0",
+  "django-storages[s3]==1.14.6",
+  "djangorestframework==3.17.1",
+  "drf-spectacular==0.30.0",
+  "gunicorn==26.0.0",
+  "psycopg[binary]==3.3.4",
+  "python-dotenv==1.2.2",
+  "sentry-sdk[django]==2.66.1",
+  "uvicorn-worker==0.4.0",
+  "whitenoise==6.12.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "coverage==7.13.4",
+  "django-stubs==6.0.7",
+  "djangorestframework-stubs==3.17.1",
+  "mypy==1.19.1",
+  "pip-audit==2.10.0",
+  "pytest==9.0.3",
+  "pytest-cov==7.0.0",
+  "pytest-django==4.12.0",
+  "ruff==0.16.0",
+  "uv==0.12.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "config.settings.test"
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "--strict-markers --strict-config -ra"
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+  "*/admin.py",
+  "*/apps.py",
+  "*/migrations/*",
+  "*/asgi.py",
+  "*/settings/*",
+  "*/wsgi.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 85
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "DJ", "S", "RUF"]
+ignore = [
+  "S101",  # assertions are expected in tests
+  "DJ001", # nullable strings are intentional in a few audit/LGPD records
+  "DJ012", # Django class ordering is less important than domain grouping
+  "RUF012", # Django/DRF class attributes are intentionally mutable declarations
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S105", "S106", "S311"]
+"src/**/migrations/*.py" = ["E501", "RUF012"]
+"src/config/settings/*.py" = ["F403", "F405", "S105"]
+
+[tool.mypy]
+python_version = "3.12"
+plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
+strict = true
+warn_unreachable = true
+exclude = ["(/migrations/|/admin\\.py$|/settings/)"]
+
+[[tool.mypy.overrides]]
+module = ["celery", "celery.*"]
+ignore_missing_imports = true
+
+[tool.django-stubs]
+django_settings_module = "config.settings.test"

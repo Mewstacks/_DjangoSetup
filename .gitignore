@@ -1,0 +1,115 @@
+# Python bytecode and caches
+__pycache__/
+*.py[cod]
+*$py.class
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.pytype/
+.pyre/
+.hypothesis/
+.dmypy.json
+dmypy.json
+
+# Packaging and build artifacts
+build/
+dist/
+downloads/
+*.egg
+*.egg-info/
+.eggs/
+wheels/
+pip-wheel-metadata/
+MANIFEST
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# Local environment variables and secrets
+.env
+.env.*
+!.env.example
+!.env.*.example
+.sentryclirc
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+service-account*.json
+
+# Django local/generated data
+db.sqlite3
+db.sqlite3-*
+*.sqlite3
+*.sqlite3-*
+local_settings.py
+staticfiles/
+media/
+uploads/
+logs/
+*.log
+
+# Celery local state
+celerybeat-schedule
+celerybeat-schedule.*
+celerybeat.pid
+
+# Tests, coverage and generated reports
+.coverage
+.coverage.*
+coverage.xml
+coverage.json
+htmlcov/
+test-results/
+junit.xml
+openapi-schema.yml
+openapi-schema.yaml
+
+# Type, documentation and task runners
+.tox/
+.nox/
+site/
+
+# IDEs and editors
+.idea/
+.vscode/
+*.code-workspace
+*.swp
+*.swo
+*~
+
+# Operating systems
+.DS_Store
+._*
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Infrastructure and local deploy state
+.terraform/
+.terraform.lock.hcl.backup
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+.fly/
+compose.override.yml
+compose.override.yaml
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# Keep these security/reproducibility files versioned:
+# - uv.lock
+# - migrations/
+# - fly.toml
+# - .env.example
