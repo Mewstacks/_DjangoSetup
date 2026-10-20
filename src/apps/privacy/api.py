@@ -10,7 +10,7 @@ from rest_framework import serializers, viewsets
 
 from apps.accounts.models import User
 from apps.audit.services import record_event
-from apps.common.encryption import PREFIX
+from apps.common.encryption import validate_not_ciphertext
 from apps.common.throttling import IPUserRateThrottle
 from apps.privacy.models import (
     ConsentRecord,
@@ -150,6 +150,7 @@ class DataSubjectRequestSerializer(serializers.ModelSerializer[DataSubjectReques
         allow_blank=True,
         trim_whitespace=False,
         max_length=10_000,
+        validators=[validate_not_ciphertext],
     )
 
     class Meta:
@@ -174,15 +175,6 @@ class DataSubjectRequestSerializer(serializers.ModelSerializer[DataSubjectReques
             "denial_reason_code",
             "created_at",
         )
-
-    def validate_details(self, value: str) -> str:
-        # Defence in depth for the encrypted column: a user must never be able to submit a
-        # value that looks like an internal ciphertext token (see apps.common.encryption).
-        if value.startswith(f"{PREFIX}:"):
-            raise serializers.ValidationError(
-                "Details must not begin with the internal encryption marker."
-            )
-        return value
 
     def create(self, validated_data: dict[str, Any]) -> DataSubjectRequest:
         user = cast(User, self.context["request"].user)

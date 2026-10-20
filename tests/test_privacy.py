@@ -102,7 +102,7 @@ def test_subject_request_details_are_encrypted_at_application_layer(user: User) 
             [database_id],
         )
         raw_value = cursor.fetchone()[0]
-    assert raw_value.startswith("enc:v1:test-v1:")
+    assert raw_value.startswith("enc:v2:test-v1:")
 
     retrieved = client.get(f"/api/v1/privacy/requests/{request_id}/")
     assert retrieved.status_code == 200

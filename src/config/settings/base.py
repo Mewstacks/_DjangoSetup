@@ -301,6 +301,8 @@ FILE_UPLOAD_PERMISSIONS = 0o640
 
 FIELD_ENCRYPTION_ACTIVE_KEY_ID = env_str("FIELD_ENCRYPTION_ACTIVE_KEY_ID")
 FIELD_ENCRYPTION_KEYS = env_json("FIELD_ENCRYPTION_KEYS", {})
+# Only while migrating a column that held plaintext before it became encrypted.
+FIELD_ENCRYPTION_ALLOW_PLAINTEXT = env_bool("FIELD_ENCRYPTION_ALLOW_PLAINTEXT", False)
 PRIVACY_HMAC_KEY = env_str("PRIVACY_HMAC_KEY")
 PRIVACY_REQUEST_TARGET_DAYS = env_int("PRIVACY_REQUEST_TARGET_DAYS", 15)
 
@@ -326,17 +328,11 @@ AXES_LOCKOUT_CALLABLE = "apps.accounts.security.axes_lockout_response"
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
-    "filters": {
-        "request_context": {"()": "apps.common.logging.RequestContextFilter"},
-        "redact": {"()": "apps.common.logging.RedactSecretsFilter"},
-    },
-    "formatters": {
-        "json": {"()": "apps.common.logging.JsonFormatter"},
-    },
+    "filters": {"access_scrub": {"()": "apps.common.logging.AccessLogScrubFilter"}},
+    "formatters": {"json": {"()": "apps.common.logging.build_formatter"}},
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "filters": ["request_context", "redact"],
             "formatter": "json",
         }
     },
@@ -352,5 +348,10 @@ LOGGING = {
             "level": "WARNING",
             "propagate": False,
         },
+        # The servers' own access loggers carry the full path with its query string and the
+        # peer address. The filter stays on the logger even when uvicorn's worker swaps
+        # the handlers for gunicorn's.
+        "uvicorn.access": {"filters": ["access_scrub"], "level": "INFO", "propagate": False},
+        "gunicorn.access": {"filters": ["access_scrub"], "level": "INFO", "propagate": False},
     },
 }

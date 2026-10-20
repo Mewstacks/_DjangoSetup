@@ -12,7 +12,16 @@ SENSITIVE_HEADERS = {
     "set-cookie",
     "x-api-key",
     "x-csrftoken",
+    # Client addresses are personal data and Sentry is a third-country processor.
+    "forwarded",
+    "referer",
+    "user-agent",
+    "x-forwarded-for",
+    "x-forwarded-host",
+    "x-real-ip",
+    "x-organization-id",
 }
+SENSITIVE_KEYS_EXACT = {"remote_addr", "ip_address", "client_ip", "x_forwarded_for"}
 SENSITIVE_KEY_FRAGMENTS = {
     "address",
     "authorization",
@@ -32,7 +41,9 @@ SENSITIVE_KEY_FRAGMENTS = {
 
 def _scrub(value: Any, *, key: str = "") -> Any:
     normalized_key = key.casefold().replace("-", "_")
-    if any(fragment in normalized_key for fragment in SENSITIVE_KEY_FRAGMENTS):
+    if normalized_key in SENSITIVE_KEYS_EXACT or any(
+        fragment in normalized_key for fragment in SENSITIVE_KEY_FRAGMENTS
+    ):
         return "[Filtered]"
     if isinstance(value, dict):
         return {child_key: _scrub(child, key=str(child_key)) for child_key, child in value.items()}
@@ -52,6 +63,7 @@ def _sanitize_event(event: dict[str, Any]) -> dict[str, Any]:
         request.pop("cookies", None)
         request.pop("data", None)
         request.pop("query_string", None)
+        request.pop("env", None)  # REMOTE_ADDR, SERVER_NAME...
         headers = request.get("headers")
         if isinstance(headers, dict):
             request["headers"] = {
