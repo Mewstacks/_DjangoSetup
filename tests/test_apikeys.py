@@ -215,3 +215,20 @@ def test_members_only_see_their_own_keys(
     assert org_client.get("/api/v1/api-keys/").data["count"] == 1  # owner sees everyone's
     Membership.objects.filter(pk=membership.pk).update(role=Membership.Role.MEMBER)
     assert org_client.get("/api/v1/api-keys/").data["count"] == 0
+
+
+def test_an_admin_can_revoke_but_never_rotate_somebody_elses_key(
+    org_client: APIClient, organization: Organization
+) -> None:
+    """Review finding: rotating returned a working secret that authenticated as the owner."""
+    colleague = User.objects.create_user("owner-of-key@example.com", "a-long-password-1234")
+    Membership.objects.create(
+        organization=organization, user=colleague, role=Membership.Role.MEMBER
+    )
+    theirs, _ = ApiKey.issue(
+        user=colleague, organization=organization, label="theirs", scopes=["notes:read"]
+    )
+    denied = org_client.post(f"/api/v1/api-keys/{theirs.pk}/rotate/")
+    assert denied.status_code == 403 and denied.data["error"]["code"] == "not_key_owner"
+    assert ApiKey.objects.filter(user=colleague).count() == 1
+    assert org_client.delete(f"/api/v1/api-keys/{theirs.pk}/").status_code == 204

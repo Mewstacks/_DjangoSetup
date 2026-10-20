@@ -159,6 +159,10 @@ class ApiKeyViewSet(
     @action(detail=True, methods=["post"])
     def rotate(self, request: Request, pk: str | None = None) -> Response:
         old = self.get_object()
+        if old.user_id != request.user.pk:
+            # Rotation hands out a fresh secret that authenticates as the key's owner. An
+            # administrator may revoke somebody's key, never obtain a working copy of it.
+            raise Forbidden("Only the key's owner can rotate it.", code="not_key_owner")
         if not old.is_active:
             raise Forbidden("Only an active key can be rotated.")
         fresh, raw = old.rotate()
