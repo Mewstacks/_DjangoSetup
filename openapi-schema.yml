@@ -1,0 +1,2734 @@
+openapi: 3.1.0
+info:
+  title: SaaS Backend API
+  version: 1.0.0
+  description: Versioned API for the reusable SaaS backend.
+paths:
+  /api/v1/actions/:
+    get:
+      operationId: actions_retrieve
+      description: Actions the caller may use, with their input and output JSON Schemas.
+      tags:
+      - actions
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionCatalog'
+          description: ''
+  /api/v1/api-keys/:
+    get:
+      operationId: api_keys_list
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApiKeyList'
+          description: ''
+    post:
+      operationId: api_keys_create
+      description: Create, list, rotate and revoke keys of the selected organization.
+      tags:
+      - api-keys
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySecret'
+          description: ''
+  /api/v1/api-keys{format}:
+    get:
+      operationId: api_keys_formatted_list
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedApiKeyList'
+          description: ''
+    post:
+      operationId: api_keys_formatted_create
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - api-keys
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/ApiKeyCreate'
+        required: true
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySecret'
+          description: ''
+  /api/v1/api-keys/{id}/:
+    get:
+      operationId: api_keys_retrieve
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+          description: ''
+    delete:
+      operationId: api_keys_destroy
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/api-keys/{id}{format}:
+    get:
+      operationId: api_keys_formatted_retrieve
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKey'
+          description: ''
+    delete:
+      operationId: api_keys_formatted_destroy
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/api-keys/{id}/rotate/:
+    post:
+      operationId: api_keys_rotate_create
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySecret'
+          description: ''
+  /api/v1/api-keys/{id}/rotate{format}:
+    post:
+      operationId: api_keys_rotate_formatted_create
+      description: Create, list, rotate and revoke keys of the selected organization.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - api-keys
+      security:
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeySecret'
+          description: ''
+  /api/v1/auth/csrf/:
+    get:
+      operationId: auth_csrf_retrieve
+      tags:
+      - auth
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CsrfToken'
+          description: ''
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Login'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Login'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Login'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      tags:
+      - auth
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      tags:
+      - auth
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+    patch:
+      operationId: auth_me_partial_update
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedMe'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedMe'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedMe'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Me'
+          description: ''
+  /api/v1/health/live/:
+    get:
+      operationId: health_live_retrieve
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Liveness'
+          description: ''
+  /api/v1/health/ready/:
+    get:
+      operationId: health_ready_retrieve
+      tags:
+      - health
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Readiness'
+          description: ''
+  /api/v1/notes/:
+    get:
+      operationId: notes_list
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - notes
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNoteList'
+          description: ''
+    post:
+      operationId: notes_create
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      tags:
+      - notes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+  /api/v1/notes{format}:
+    get:
+      operationId: notes_formatted_list
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - notes
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedNoteList'
+          description: ''
+    post:
+      operationId: notes_formatted_create
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - notes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Note'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Note'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Note'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+  /api/v1/notes/{id}/:
+    get:
+      operationId: notes_retrieve
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notes
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+    patch:
+      operationId: notes_partial_update
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedNote'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedNote'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedNote'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+    delete:
+      operationId: notes_destroy
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notes
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/notes/{id}{format}:
+    get:
+      operationId: notes_formatted_retrieve
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notes
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+    patch:
+      operationId: notes_formatted_partial_update
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notes
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatchedNote'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PatchedNote'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PatchedNote'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Note'
+          description: ''
+    delete:
+      operationId: notes_formatted_destroy
+      description: |-
+        Base class for every resource that belongs to a single organization.
+
+        Subclasses set ``queryset`` and ``serializer_class`` and nothing else. The tenant
+        filter lives here so that forgetting it is impossible instead of catastrophic, and
+        ``organization`` is assigned from the request rather than accepted from the payload.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - notes
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '204':
+          description: No response body
+  /api/v1/organizations/:
+    get:
+      operationId: organizations_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - organizations
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganizationList'
+          description: ''
+    post:
+      operationId: organizations_create
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Organization'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/organizations{format}:
+    get:
+      operationId: organizations_formatted_list
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - organizations
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedOrganizationList'
+          description: ''
+    post:
+      operationId: organizations_formatted_create
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - organizations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Organization'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Organization'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/organizations/{id}/:
+    get:
+      operationId: organizations_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - organizations
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/organizations/{id}{format}:
+    get:
+      operationId: organizations_formatted_retrieve
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - organizations
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+          description: ''
+  /api/v1/privacy/consents/:
+    get:
+      operationId: privacy_consents_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConsentList'
+          description: ''
+    post:
+      operationId: privacy_consents_create
+      tags:
+      - privacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Consent'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consent'
+          description: ''
+  /api/v1/privacy/consents{format}:
+    get:
+      operationId: privacy_consents_formatted_list
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConsentList'
+          description: ''
+    post:
+      operationId: privacy_consents_formatted_create
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - privacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/Consent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Consent'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consent'
+          description: ''
+  /api/v1/privacy/consents/{id}/:
+    get:
+      operationId: privacy_consents_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consent'
+          description: ''
+  /api/v1/privacy/consents/{id}{format}:
+    get:
+      operationId: privacy_consents_formatted_retrieve
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Consent'
+          description: ''
+  /api/v1/privacy/notice/:
+    get:
+      operationId: privacy_notice_retrieve
+      description: 'The notice a consent must reference. Public: it is the thing people
+        are asked to read.'
+      tags:
+      - privacy
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PrivacyNotice'
+          description: ''
+  /api/v1/privacy/purposes/:
+    get:
+      operationId: privacy_purposes_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProcessingPurposeList'
+          description: ''
+  /api/v1/privacy/purposes{format}:
+    get:
+      operationId: privacy_purposes_formatted_list
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProcessingPurposeList'
+          description: ''
+  /api/v1/privacy/purposes/{id}/:
+    get:
+      operationId: privacy_purposes_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingPurpose'
+          description: ''
+  /api/v1/privacy/purposes/{id}{format}:
+    get:
+      operationId: privacy_purposes_formatted_retrieve
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessingPurpose'
+          description: ''
+  /api/v1/privacy/requests/:
+    get:
+      operationId: privacy_requests_list
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDataSubjectRequestList'
+          description: ''
+    post:
+      operationId: privacy_requests_create
+      tags:
+      - privacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DataSubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DataSubjectRequest'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSubjectRequest'
+          description: ''
+  /api/v1/privacy/requests{format}:
+    get:
+      operationId: privacy_requests_formatted_list
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedDataSubjectRequestList'
+          description: ''
+    post:
+      operationId: privacy_requests_formatted_create
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      tags:
+      - privacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/DataSubjectRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/DataSubjectRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/DataSubjectRequest'
+        required: true
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSubjectRequest'
+          description: ''
+  /api/v1/privacy/requests/{id}/:
+    get:
+      operationId: privacy_requests_retrieve
+      parameters:
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSubjectRequest'
+          description: ''
+  /api/v1/privacy/requests/{id}{format}:
+    get:
+      operationId: privacy_requests_formatted_retrieve
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - in: path
+        name: id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DataSubjectRequest'
+          description: ''
+  /api/v1/actions/notes.list/:
+    post:
+      operationId: action_notes_list
+      summary: Notes List
+      description: List the organization's notes, newest first.
+      tags:
+      - notes
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: notes:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteList'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListNotes'
+    get:
+      operationId: action_notes_list_get
+      summary: Notes List
+      description: |-
+        List the organization's notes, newest first.
+
+        Input is passed as query parameters.
+      tags:
+      - notes
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: notes:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteList'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/actions/notes.get/:
+    post:
+      operationId: action_notes_get
+      summary: Notes Get
+      description: Read one note by id.
+      tags:
+      - notes
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: notes:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteRef'
+    get:
+      operationId: action_notes_get_get
+      summary: Notes Get
+      description: |-
+        Read one note by id.
+
+        Input is passed as query parameters.
+      tags:
+      - notes
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: notes:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/actions/notes.create/:
+    post:
+      operationId: action_notes_create
+      summary: Notes Create
+      description: Create a note. Send an Idempotency-Key to make retries safe.
+      tags:
+      - notes
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: 'Repeat a call safely: the stored response is replayed.'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: notes:write
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateNote'
+  /api/v1/actions/notes.update/:
+    post:
+      operationId: action_notes_update
+      summary: Notes Update
+      description: Change a note's title or body. Archived notes cannot be edited.
+      tags:
+      - notes
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: 'Repeat a call safely: the stored response is replayed.'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: notes:write
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateNote'
+  /api/v1/actions/notes.archive/:
+    post:
+      operationId: action_notes_archive
+      summary: Notes Archive
+      description: Archive a note. Archived notes are hidden from the default list
+        and read-only.
+      tags:
+      - notes
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: 'Repeat a call safely: the stored response is replayed.'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: notes:write
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NoteOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NoteRef'
+components:
+  schemas:
+    ActionCatalog:
+      type: object
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: {}
+        total:
+          type: integer
+      required:
+      - items
+      - total
+    ApiKey:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        kind:
+          enum:
+          - api
+          - agent
+          type: string
+          description: |-
+            * `api` - API
+            * `agent` - AI agent
+          x-spec-enum-id: e7bca48724c70425
+          readOnly: true
+        public_id:
+          type: string
+          readOnly: true
+        scopes:
+          readOnly: true
+        expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        last_used_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        allowed_ips:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - allowed_ips
+      - created_at
+      - expires_at
+      - id
+      - kind
+      - label
+      - last_used_at
+      - public_id
+      - revoked_at
+      - scopes
+    ApiKeyCreate:
+      type: object
+      properties:
+        label:
+          type: string
+          maxLength: 120
+        kind:
+          enum:
+          - api
+          - agent
+          type: string
+          description: |-
+            * `api` - API
+            * `agent` - AI agent
+          x-spec-enum-id: e7bca48724c70425
+          default: api
+        profile:
+          enum:
+          - read
+          - full
+          type: string
+          description: |-
+            * `read` - read
+            * `full` - full
+          x-spec-enum-id: 21373e88867f49c0
+        scopes:
+          type: array
+          items:
+            type: string
+        expires_in_days:
+          type: integer
+          maximum: 365
+          minimum: 1
+        allowed_ips:
+          type: array
+          items:
+            type: string
+      required:
+      - label
+    ApiKeySecret:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        label:
+          type: string
+          readOnly: true
+        kind:
+          enum:
+          - api
+          - agent
+          type: string
+          description: |-
+            * `api` - API
+            * `agent` - AI agent
+          x-spec-enum-id: e7bca48724c70425
+          readOnly: true
+        public_id:
+          type: string
+          readOnly: true
+        scopes:
+          readOnly: true
+        expires_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        last_used_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        revoked_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        allowed_ips:
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        secret:
+          type: string
+          readOnly: true
+      required:
+      - allowed_ips
+      - created_at
+      - expires_at
+      - id
+      - kind
+      - label
+      - last_used_at
+      - public_id
+      - revoked_at
+      - scopes
+      - secret
+    Consent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        idempotency_key:
+          type: string
+          format: uuid
+          writeOnly: true
+        purpose:
+          type: string
+          format: uuid
+        notice:
+          type: string
+          format: uuid
+        decision:
+          enum:
+          - granted
+          - withdrawn
+          type: string
+          description: |-
+            * `granted` - Granted
+            * `withdrawn` - Withdrawn
+          x-spec-enum-id: e708fbd556fb973d
+        recorded_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - decision
+      - id
+      - notice
+      - purpose
+      - recorded_at
+    CsrfToken:
+      type: object
+      properties:
+        csrf_token:
+          type: string
+      required:
+      - csrf_token
+    DataSubjectRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        request_type:
+          enum:
+          - confirmation
+          - access
+          - correction
+          - anonymization
+          - blocking
+          - deletion
+          - portability
+          - consent_withdrawal
+          - sharing_information
+          - automated_review
+          - opposition
+          type: string
+          description: |-
+            * `confirmation` - Confirmation of processing
+            * `access` - Access
+            * `correction` - Correction
+            * `anonymization` - Anonymization
+            * `blocking` - Blocking
+            * `deletion` - Deletion
+            * `portability` - Portability
+            * `consent_withdrawal` - Consent withdrawal
+            * `sharing_information` - Sharing information
+            * `automated_review` - Automated decision review
+            * `opposition` - Opposition
+          x-spec-enum-id: 703625ab97b0d950
+        status:
+          enum:
+          - received
+          - verifying
+          - in_progress
+          - legal_review
+          - completed
+          - denied
+          - cancelled
+          type: string
+          description: |-
+            * `received` - Received
+            * `verifying` - Verifying identity
+            * `in_progress` - In progress
+            * `legal_review` - Legal review
+            * `completed` - Completed
+            * `denied` - Denied
+            * `cancelled` - Cancelled
+          x-spec-enum-id: 715e056206a2bce5
+          readOnly: true
+        details:
+          type: string
+          maxLength: 10000
+        response_summary:
+          type: string
+          readOnly: true
+        target_due_at:
+          type: string
+          format: date-time
+          readOnly: true
+        completed_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        denial_reason_code:
+          type: string
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - completed_at
+      - created_at
+      - denial_reason_code
+      - id
+      - request_type
+      - response_summary
+      - status
+      - target_due_at
+    Liveness:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+      - status
+    Login:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          writeOnly: true
+      required:
+      - email
+      - password
+    Me:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 150
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - date_joined
+      - email
+      - id
+    Note:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - archived_at
+      - created_at
+      - id
+      - title
+      - updated_at
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        name:
+          type: string
+          maxLength: 160
+        slug:
+          type: string
+          pattern: ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$
+          maxLength: 63
+        is_active:
+          type: boolean
+          readOnly: true
+        current_user_role:
+          type:
+          - string
+          - 'null'
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+      required:
+      - created_at
+      - current_user_role
+      - id
+      - is_active
+      - name
+      - slug
+    PaginatedApiKeyList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKey'
+    PaginatedConsentList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Consent'
+    PaginatedDataSubjectRequestList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/DataSubjectRequest'
+    PaginatedNoteList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Note'
+    PaginatedOrganizationList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/Organization'
+    PaginatedProcessingPurposeList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessingPurpose'
+    PatchedMe:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        email:
+          type: string
+          format: email
+          readOnly: true
+        full_name:
+          type: string
+          maxLength: 150
+        date_joined:
+          type: string
+          format: date-time
+          readOnly: true
+    PatchedNote:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        title:
+          type: string
+          maxLength: 200
+        body:
+          type: string
+        archived_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+          readOnly: true
+        created_at:
+          type: string
+          format: date-time
+          readOnly: true
+        updated_at:
+          type: string
+          format: date-time
+          readOnly: true
+    PrivacyNotice:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        version:
+          type: string
+          maxLength: 32
+        document_url:
+          type: string
+          format: uri
+          maxLength: 200
+        checksum_sha256:
+          type: string
+          maxLength: 64
+        effective_at:
+          type: string
+          format: date-time
+      required:
+      - checksum_sha256
+      - document_url
+      - effective_at
+      - id
+      - version
+    ProcessingPurpose:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          readOnly: true
+        code:
+          type: string
+          maxLength: 80
+          pattern: ^[-a-zA-Z0-9_]+$
+        name:
+          type: string
+          maxLength: 160
+        description:
+          type: string
+        lawful_basis:
+          enum:
+          - consent
+          - legal_obligation
+          - contract
+          - legitimate_interest
+          - exercise_of_rights
+          - credit_protection
+          - life_protection
+          - health
+          - research
+          - public_policy
+          type: string
+          description: |-
+            * `consent` - Consent
+            * `legal_obligation` - Legal or regulatory obligation
+            * `contract` - Contract performance
+            * `legitimate_interest` - Legitimate interest
+            * `exercise_of_rights` - Exercise of rights
+            * `credit_protection` - Credit protection
+            * `life_protection` - Protection of life
+            * `health` - Protection of health
+            * `research` - Research
+            * `public_policy` - Public policy
+          x-spec-enum-id: df091e8fca1b1731
+        data_categories: {}
+        retention_days:
+          type: integer
+          maximum: 9223372036854775807
+          minimum: 0
+          format: int64
+      required:
+      - code
+      - description
+      - id
+      - lawful_basis
+      - name
+      - retention_days
+    Readiness:
+      type: object
+      properties:
+        status:
+          type: string
+        checks:
+          type: object
+          additionalProperties:
+            type: string
+      required:
+      - status
+    ErrorEnvelope:
+      type: object
+      required:
+      - error
+      properties:
+        error:
+          type: object
+          required:
+          - status
+          - code
+          - detail
+          properties:
+            status:
+              type: integer
+            code:
+              type: string
+            detail: {}
+            request_id:
+              type:
+              - string
+              - 'null'
+    CreateNote:
+      properties:
+        title:
+          maxLength: 200
+          minLength: 1
+          title: Title
+          type: string
+        body:
+          default: ''
+          maxLength: 20000
+          title: Body
+          type: string
+      required:
+      - title
+      title: CreateNote
+      type: object
+    ListNotes:
+      properties:
+        limit:
+          default: 20
+          maximum: 50
+          minimum: 1
+          title: Limit
+          type: integer
+        offset:
+          default: 0
+          minimum: 0
+          title: Offset
+          type: integer
+        include_archived:
+          default: false
+          title: Include Archived
+          type: boolean
+      title: ListNotes
+      type: object
+    NoteList:
+      properties:
+        total:
+          title: Total
+          type: integer
+        returned:
+          title: Returned
+          type: integer
+        next_offset:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Next Offset
+        items:
+          items:
+            $ref: '#/components/schemas/NoteOut'
+          title: Items
+          type: array
+      required:
+      - total
+      - returned
+      - next_offset
+      - items
+      title: NoteList
+      type: object
+    NoteOut:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        title:
+          title: Title
+          type: string
+        body:
+          title: Body
+          type: string
+        archived:
+          title: Archived
+          type: boolean
+        created_at:
+          format: date-time
+          title: Created At
+          type: string
+      required:
+      - id
+      - title
+      - body
+      - archived
+      - created_at
+      title: NoteOut
+      type: object
+    NoteRef:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+      required:
+      - id
+      title: NoteRef
+      type: object
+    UpdateNote:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        title:
+          anyOf:
+          - maxLength: 200
+            minLength: 1
+            type: string
+          - type: 'null'
+          default: null
+          title: Title
+        body:
+          anyOf:
+          - maxLength: 20000
+            type: string
+          - type: 'null'
+          default: null
+          title: Body
+      required:
+      - id
+      title: UpdateNote
+      type: object
+  securitySchemes:
+    ApiKeyAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: key_<id>_<secret>
+      description: Scoped API key. Create one from an authenticated session.
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid

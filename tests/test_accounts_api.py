@@ -88,4 +88,4 @@ def test_logout_ends_the_session(user: User) -> None:
     logout_token = client.get("/api/v1/auth/csrf/").data["csrf_token"]
     logout_response = client.post("/api/v1/auth/logout/", HTTP_X_CSRFTOKEN=logout_token)
     assert logout_response.status_code == 204
-    assert client.get("/api/v1/auth/me/").status_code == 403
+    assert client.get("/api/v1/auth/me/").status_code == 401

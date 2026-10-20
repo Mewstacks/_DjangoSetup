@@ -65,7 +65,6 @@ coverage.json
 htmlcov/
 test-results/
 junit.xml
-openapi-schema.yml
 openapi-schema.yaml
 
 # Type, documentation and task runners

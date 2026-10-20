@@ -140,7 +140,7 @@ def test_processing_purposes_require_auth_and_list_only_active(
         retention_days=30,
         active=False,
     )
-    assert APIClient().get("/api/v1/privacy/purposes/").status_code == 403
+    assert APIClient().get("/api/v1/privacy/purposes/").status_code == 401
 
     client = APIClient()
     client.force_authenticate(user)

@@ -39,6 +39,9 @@ LOCAL_APPS = [
     "apps.organizations",
     "apps.audit",
     "apps.privacy",
+    "apps.actions",
+    "apps.apikeys",
+    "apps.examples",
 ]
 INSTALLED_APPS = [*DJANGO_APPS, *THIRD_PARTY_APPS, *LOCAL_APPS]
 
@@ -250,10 +253,12 @@ CORS_ALLOW_HEADERS = [
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
+        "apps.apikeys.authentication.ApiKeyAuthentication",
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
+        "apps.apikeys.authentication.ApiKeyScopePermission",
     ],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "EXCEPTION_HANDLER": "apps.common.exceptions.api_exception_handler",
@@ -283,6 +288,8 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
+    "OAS_VERSION": "3.1.0",  # pydantic emits JSON Schema 2020-12 (nullable via type null)
+    "POSTPROCESSING_HOOKS": ["apps.actions.schema.add_action_paths"],
     "TITLE": "SaaS Backend API",
     "DESCRIPTION": "Versioned API for the reusable SaaS backend.",
     "VERSION": "1.0.0",
@@ -308,6 +315,13 @@ FIELD_ENCRYPTION_KEYS = env_json("FIELD_ENCRYPTION_KEYS", {})
 FIELD_ENCRYPTION_ALLOW_PLAINTEXT = env_bool("FIELD_ENCRYPTION_ALLOW_PLAINTEXT", False)
 PRIVACY_HMAC_KEY = env_str("PRIVACY_HMAC_KEY")
 PRIVACY_REQUEST_TARGET_DAYS = env_int("PRIVACY_REQUEST_TARGET_DAYS", 15)
+
+# Action runtime (see apps.actions): calls per credential per minute; 0 disables the limit.
+ACTIONS_RATE_READ_PER_MINUTE = env_int("ACTIONS_RATE_READ_PER_MINUTE", 300)
+ACTIONS_RATE_WRITE_PER_MINUTE = env_int("ACTIONS_RATE_WRITE_PER_MINUTE", 120)
+# Scopes that exist without an action behind them (for example a CRUD-only resource).
+ACTIONS_EXTRA_SCOPES = tuple(env_list("ACTIONS_EXTRA_SCOPES"))
+API_KEY_PREFIX = env_str("API_KEY_PREFIX", "key")
 
 AXES_ENABLED = True
 AXES_CLIENT_IP_CALLABLE = "apps.common.network.client_ip_bucket"

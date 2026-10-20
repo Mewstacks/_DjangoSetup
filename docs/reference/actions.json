@@ -1,0 +1,398 @@
+{
+  "actions": [
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Archive a note. Archived notes are hidden from the default list and read-only.",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "NoteRef",
+        "type": "object"
+      },
+      "name": "notes.archive",
+      "output_schema": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "body",
+          "archived",
+          "created_at"
+        ],
+        "title": "NoteOut",
+        "type": "object"
+      },
+      "scope": "notes:write",
+      "title": "Notes Archive",
+      "write": true
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Create a note. Send an Idempotency-Key to make retries safe.",
+      "input_schema": {
+        "properties": {
+          "body": {
+            "default": "",
+            "maxLength": 20000,
+            "title": "Body",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ],
+        "title": "CreateNote",
+        "type": "object"
+      },
+      "name": "notes.create",
+      "output_schema": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "body",
+          "archived",
+          "created_at"
+        ],
+        "title": "NoteOut",
+        "type": "object"
+      },
+      "scope": "notes:write",
+      "title": "Notes Create",
+      "write": true
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Read one note by id.",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "NoteRef",
+        "type": "object"
+      },
+      "name": "notes.get",
+      "output_schema": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "body",
+          "archived",
+          "created_at"
+        ],
+        "title": "NoteOut",
+        "type": "object"
+      },
+      "scope": "notes:read",
+      "title": "Notes Get",
+      "write": false
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "List the organization's notes, newest first.",
+      "input_schema": {
+        "properties": {
+          "include_archived": {
+            "default": false,
+            "title": "Include Archived",
+            "type": "boolean"
+          },
+          "limit": {
+            "default": 20,
+            "maximum": 50,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "minimum": 0,
+            "title": "Offset",
+            "type": "integer"
+          }
+        },
+        "title": "ListNotes",
+        "type": "object"
+      },
+      "name": "notes.list",
+      "output_schema": {
+        "$defs": {
+          "NoteOut": {
+            "properties": {
+              "archived": {
+                "title": "Archived",
+                "type": "boolean"
+              },
+              "body": {
+                "title": "Body",
+                "type": "string"
+              },
+              "created_at": {
+                "format": "date-time",
+                "title": "Created At",
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "title": "Id",
+                "type": "string"
+              },
+              "title": {
+                "title": "Title",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "title",
+              "body",
+              "archived",
+              "created_at"
+            ],
+            "title": "NoteOut",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/NoteOut"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "next_offset": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Next Offset"
+          },
+          "returned": {
+            "title": "Returned",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total",
+          "returned",
+          "next_offset",
+          "items"
+        ],
+        "title": "NoteList",
+        "type": "object"
+      },
+      "scope": "notes:read",
+      "title": "Notes List",
+      "write": false
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Change a note's title or body. Archived notes cannot be edited.",
+      "input_schema": {
+        "properties": {
+          "body": {
+            "anyOf": [
+              {
+                "maxLength": 20000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Body"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Title"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "UpdateNote",
+        "type": "object"
+      },
+      "name": "notes.update",
+      "output_schema": {
+        "properties": {
+          "archived": {
+            "title": "Archived",
+            "type": "boolean"
+          },
+          "body": {
+            "title": "Body",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "body",
+          "archived",
+          "created_at"
+        ],
+        "title": "NoteOut",
+        "type": "object"
+      },
+      "scope": "notes:write",
+      "title": "Notes Update",
+      "write": true
+    }
+  ]
+}

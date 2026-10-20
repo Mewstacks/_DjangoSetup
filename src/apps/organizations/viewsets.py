@@ -7,8 +7,9 @@ from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.serializers import BaseSerializer
 
+from apps.apikeys.authentication import ApiKeyScopePermission
 from apps.organizations.models import Organization, OrganizationScopedModel
-from apps.organizations.permissions import HasOrganizationContext
+from apps.organizations.permissions import HasOrganizationContext, RoleCanWrite
 
 ScopedModelT = TypeVar("ScopedModelT", bound=OrganizationScopedModel)
 
@@ -21,7 +22,12 @@ class OrganizationScopedViewSet(viewsets.ModelViewSet[ScopedModelT]):
     ``organization`` is assigned from the request rather than accepted from the payload.
     """
 
-    permission_classes = [IsAuthenticated, HasOrganizationContext]
+    permission_classes = [
+        IsAuthenticated,
+        ApiKeyScopePermission,
+        HasOrganizationContext,
+        RoleCanWrite,
+    ]
     lookup_value_converter = "uuid"
 
     def get_organization(self) -> Organization:

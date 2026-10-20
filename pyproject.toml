@@ -20,6 +20,7 @@ dependencies = [
   "drf-spectacular==0.30.0",
   "gunicorn==26.2.0",
   "psycopg[binary]==3.3.6",
+  "pydantic==2.14.1",
   "python-dotenv==1.2.4",
   "sentry-sdk[django]==2.72.0",
   "structlog==26.1.0",
@@ -82,7 +83,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S105", "S106", "S311"]
+"tests/**/*.py" = ["S105", "S106", "S311", "E501"]
 "src/**/migrations/*.py" = ["E501", "RUF012"]
 "src/config/settings/*.py" = ["F403", "F405", "S105"]
 

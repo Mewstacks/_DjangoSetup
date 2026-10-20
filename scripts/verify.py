@@ -80,6 +80,11 @@ def main() -> int:
             {"DJANGO_SETTINGS_MODULE": "config.settings.test"},
         )
     )
+    test_env = {"DJANGO_SETTINGS_MODULE": "config.settings.test"}
+    steps.append(
+        ("action catalog drift", [py, "manage.py", "actions_catalog", "--check"], test_env)
+    )
+    steps.append(("openapi drift", [py, "scripts/check_openapi.py"], test_env))
     if not args.fast:
         steps.append(("check --deploy", [py, "manage.py", "check", "--deploy"], DEPLOY_CHECK_ENV))
 

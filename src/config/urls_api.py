@@ -4,7 +4,10 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
 from apps.accounts.api import CsrfTokenView, LoginView, LogoutView, MeView
+from apps.actions.rest import ActionCatalogView, ActionInvokeView
+from apps.apikeys.api import ApiKeyViewSet
 from apps.common.views import LivenessView, ReadinessView
+from apps.examples.api import NoteViewSet
 from apps.organizations.api import OrganizationViewSet
 from apps.privacy.api import (
     ActiveNoticeView,
@@ -14,12 +17,16 @@ from apps.privacy.api import (
 )
 
 router = DefaultRouter(use_regex_path=False)
+router.register("api-keys", ApiKeyViewSet, basename="api-key")
+router.register("notes", NoteViewSet, basename="note")
 router.register("organizations", OrganizationViewSet, basename="organization")
 router.register("privacy/purposes", ProcessingPurposeViewSet, basename="privacy-purpose")
 router.register("privacy/consents", ConsentViewSet, basename="privacy-consent")
 router.register("privacy/requests", DataSubjectRequestViewSet, basename="privacy-request")
 
 urlpatterns = [
+    path("actions/", ActionCatalogView.as_view(), name="action-catalog"),
+    path("actions/<str:name>/", ActionInvokeView.as_view(), name="action-invoke"),
     path("health/live/", LivenessView.as_view(), name="health-live"),
     path("health/ready/", ReadinessView.as_view(), name="health-ready"),
     path("privacy/notice/", ActiveNoticeView.as_view(), name="privacy-notice"),

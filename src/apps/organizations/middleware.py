@@ -30,6 +30,10 @@ class OrganizationContextMiddleware:
         raw_id = request.headers.get("X-Organization-ID")
         if not raw_id:
             return self.get_response(request)
+        if request.headers.get("Authorization", "")[:7].casefold() == "bearer ":
+            # A bearer credential (API key, OAuth token) fixes its own organization during DRF
+            # authentication; the header is a session-only selector and is ignored here.
+            return self.get_response(request)
         try:
             organization_id = uuid.UUID(raw_id)
         except ValueError:

@@ -23,6 +23,63 @@ def error_body(status: int, code: str, detail: Any) -> dict[str, Any]:
     }
 
 
+class DomainError(Exception):
+    """An error the application raises on purpose, with text written for the caller.
+
+    Raised by services and actions on every channel; the REST handler, the MCP wrapper and the
+    CLI each map it to their own wire format. Anything that is *not* a DomainError is a bug and
+    is reported as a generic 500.
+    """
+
+    status = 400
+    code = "error"
+
+    def __init__(self, detail: str = "", *, code: str | None = None, extra: Any = None) -> None:
+        super().__init__(detail or self.code)
+        self.detail = detail or self.code
+        if code:
+            self.code = code
+        self.extra = extra
+
+    def payload(self) -> Any:
+        return self.extra if self.extra is not None else self.detail
+
+
+class NotFound(DomainError):
+    status = 404
+    code = "not_found"
+
+
+class Forbidden(DomainError):
+    status = 403
+    code = "forbidden"
+
+
+class Unauthenticated(DomainError):
+    status = 401
+    code = "authentication_required"
+
+
+class Invalid(DomainError):
+    status = 422
+    code = "invalid"
+
+
+class Conflict(DomainError):
+    status = 409
+    code = "conflict"
+
+
+class RateLimited(DomainError):
+    status = 429
+    code = "rate_limited"
+
+
+class Unavailable(DomainError):
+    status = 503
+    code = "unavailable"
+
+
 def _translate(exc: Exception) -> Exception:
     # Model.full_clean() and service code raise Django's ValidationError; without this they
     # surface as a 500. SuspiciousOperation (for example a tampered ciphertext) must read as a
@@ -38,6 +95,8 @@ def _translate(exc: Exception) -> Exception:
 
 
 def api_exception_handler(exc: Exception, context: dict[str, Any]) -> Response | None:
+    if isinstance(exc, DomainError):
+        return Response(error_body(exc.status, exc.code, exc.payload()), status=exc.status)
     exc = _translate(exc)
     response = exception_handler(exc, context)
     if response is None:

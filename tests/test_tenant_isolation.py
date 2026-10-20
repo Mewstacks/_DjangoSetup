@@ -142,11 +142,11 @@ def test_a_foreign_organization_header_is_never_accepted(
 ) -> None:
     """Sweeps every scoped route registered in production, for resources added later."""
 
+    # APIClient applies credentials() after per-request extras, so the foreign header has to be
+    # installed as the credential or the client would send its own organization instead.
+    other_org_client.credentials(HTTP_X_ORGANIZATION_ID=str(organization.id))
     for prefix in SCOPED_PREFIXES:
-        response = other_org_client.get(
-            f"/api/v1/{prefix}/",
-            HTTP_X_ORGANIZATION_ID=str(organization.id),
-        )
+        response = other_org_client.get(f"/api/v1/{prefix}/")
         assert response.status_code == 404, prefix
 
 

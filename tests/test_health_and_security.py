@@ -26,7 +26,8 @@ def test_security_defaults_and_sentry_scrubbing() -> None:
     assert settings.CSRF_COOKIE_HTTPONLY is True
     assert settings.X_FRAME_OPTIONS == "DENY"
     assert settings.REST_FRAMEWORK["DEFAULT_PERMISSION_CLASSES"] == [
-        "rest_framework.permissions.IsAuthenticated"
+        "rest_framework.permissions.IsAuthenticated",
+        "apps.apikeys.authentication.ApiKeyScopePermission",
     ]
 
     event = {
