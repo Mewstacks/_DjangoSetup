@@ -1612,6 +1612,623 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/ChangeRef'
+  /api/v1/actions/flows.catalog/:
+    post:
+      operationId: action_flows_catalog
+      summary: Flows Catalog
+      description: Which engine runs flows here, which flows exist, and what each
+        engine can and cannot do.
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowCatalog'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+    get:
+      operationId: action_flows_catalog_get
+      summary: Flows Catalog
+      description: |-
+        Which engine runs flows here, which flows exist, and what each engine can and cannot do.
+
+        Input is passed as query parameters.
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FlowCatalog'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/actions/flows.runs/:
+    post:
+      operationId: action_flows_runs
+      summary: Flows Runs
+      description: List recent flow runs of this organization.
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunList'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ListRuns'
+    get:
+      operationId: action_flows_runs_get
+      summary: Flows Runs
+      description: |-
+        List recent flow runs of this organization.
+
+        Input is passed as query parameters.
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunList'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/actions/flows.status/:
+    post:
+      operationId: action_flows_status
+      summary: Flows Status
+      description: Current status of one run (refreshed from Temporal when that engine
+        ran it).
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRef'
+    get:
+      operationId: action_flows_status_get
+      summary: Flows Status
+      description: |-
+        Current status of one run (refreshed from Temporal when that engine ran it).
+
+        Input is passed as query parameters.
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:read
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+  /api/v1/actions/flows.start/:
+    post:
+      operationId: action_flows_start
+      summary: Flows Start
+      description: Start one of the flows marked startable. Safe to call with an Idempotency-Key.
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: 'Repeat a call safely: the stored response is replayed.'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:write
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StartFlow'
+  /api/v1/actions/flows.signal/:
+    post:
+      operationId: action_flows_signal
+      summary: Flows Signal
+      description: Send a signal to a running flow (Temporal engine only).
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: 'Repeat a call safely: the stored response is replayed.'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:write
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignalFlow'
+  /api/v1/actions/flows.cancel/:
+    post:
+      operationId: action_flows_cancel
+      summary: Flows Cancel
+      description: Cancel a running flow (Temporal engine only).
+      tags:
+      - flows
+      parameters:
+      - name: X-Organization-ID
+        in: header
+        required: false
+        schema:
+          type: string
+          format: uuid
+        description: Required for session callers; fixed by an API key.
+      - name: Idempotency-Key
+        in: header
+        required: false
+        schema:
+          type: string
+          maxLength: 128
+        description: 'Repeat a call safely: the stored response is replayed.'
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      x-required-scope: flows:write
+      responses:
+        '200':
+          description: Result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunOut'
+        '401':
+          description: Authentication required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '403':
+          description: Missing scope or role
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '404':
+          description: Unknown action or record
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '409':
+          description: Idempotency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '422':
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+        '429':
+          description: Rate limited
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRef'
   /api/v1/actions/notes.list/:
     post:
       operationId: action_notes_list
@@ -2885,6 +3502,49 @@ components:
       - title
       title: CreateNote
       type: object
+    FlowCatalog:
+      properties:
+        engine:
+          title: Engine
+          type: string
+        flows:
+          items:
+            $ref: '#/components/schemas/FlowInfo'
+          title: Flows
+          type: array
+        capabilities:
+          items:
+            additionalProperties: true
+            type: object
+          title: Capabilities
+          type: array
+      required:
+      - engine
+      - flows
+      - capabilities
+      title: FlowCatalog
+      type: object
+    FlowInfo:
+      properties:
+        name:
+          title: Name
+          type: string
+        description:
+          title: Description
+          type: string
+        portable:
+          title: Portable
+          type: boolean
+        startable:
+          title: Startable
+          type: boolean
+      required:
+      - name
+      - description
+      - portable
+      - startable
+      title: FlowInfo
+      type: object
     ListChanges:
       properties:
         limit:
@@ -2917,6 +3577,22 @@ components:
           title: Include Archived
           type: boolean
       title: ListNotes
+      type: object
+    ListRuns:
+      properties:
+        limit:
+          default: 20
+          maximum: 50
+          minimum: 1
+          title: Limit
+          type: integer
+        flow:
+          anyOf:
+          - type: string
+          - type: 'null'
+          default: null
+          title: Flow
+      title: ListRuns
       type: object
     NoteList:
       properties:
@@ -2979,6 +3655,111 @@ components:
       required:
       - id
       title: NoteRef
+      type: object
+    RunList:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RunOut'
+          title: Items
+          type: array
+      required:
+      - items
+      title: RunList
+      type: object
+    RunOut:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        flow:
+          title: Flow
+          type: string
+        engine:
+          title: Engine
+          type: string
+        status:
+          title: Status
+          type: string
+        error:
+          title: Error
+          type: string
+        started_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Started At
+        finished_at:
+          anyOf:
+          - format: date-time
+            type: string
+          - type: 'null'
+          title: Finished At
+        result:
+          anyOf:
+          - {}
+          - type: 'null'
+          default: null
+          title: Result
+      required:
+      - id
+      - flow
+      - engine
+      - status
+      - error
+      - started_at
+      - finished_at
+      title: RunOut
+      type: object
+    RunRef:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+      required:
+      - id
+      title: RunRef
+      type: object
+    SignalFlow:
+      properties:
+        id:
+          format: uuid
+          title: Id
+          type: string
+        name:
+          maxLength: 80
+          minLength: 1
+          title: Name
+          type: string
+        payload:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          default: null
+          title: Payload
+      required:
+      - id
+      - name
+      title: SignalFlow
+      type: object
+    StartFlow:
+      properties:
+        flow:
+          maxLength: 120
+          minLength: 3
+          title: Flow
+          type: string
+        input:
+          additionalProperties: true
+          title: Input
+          type: object
+      required:
+      - flow
+      title: StartFlow
       type: object
     UpdateNote:
       properties:

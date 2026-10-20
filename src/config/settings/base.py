@@ -40,6 +40,7 @@ LOCAL_APPS = [
     "apps.audit",
     "apps.privacy",
     "apps.actions",
+    "apps.flows",
     "apps.apikeys",
     "apps.examples",
 ]
@@ -350,6 +351,33 @@ OAUTH2_PROVIDER = {
 OAUTH_DCR_ANONYMOUS = env_bool("OAUTH_DCR_ANONYMOUS", False)
 OAUTH_ISSUER_URL = env_str("OAUTH_ISSUER_URL")  # public base URL, e.g. https://app.example.com
 MCP_PUBLIC_URL = env_str("MCP_PUBLIC_URL")  # public base URL of this service for /mcp
+
+# Durable flows and background jobs (apps.flows). Off by default: flows then run on the local
+# engine and tasks run inline, so a fresh clone needs nothing but the database.
+TEMPORAL_ENABLED = env_bool("TEMPORAL_ENABLED", False)
+TEMPORAL_ADDRESS = env_str("TEMPORAL_ADDRESS", "localhost:7233")
+TEMPORAL_NAMESPACE = env_str("TEMPORAL_NAMESPACE", "default")
+TEMPORAL_TASK_QUEUE = env_str("TEMPORAL_TASK_QUEUE", f"{deployment_name}-main")
+TEMPORAL_TLS = env_bool("TEMPORAL_TLS", False)
+TEMPORAL_TLS_CLIENT_CERT = env_str("TEMPORAL_TLS_CLIENT_CERT")  # path, mTLS
+TEMPORAL_TLS_CLIENT_KEY = env_str("TEMPORAL_TLS_CLIENT_KEY")  # path, mTLS
+TEMPORAL_TLS_SERVER_CA = env_str("TEMPORAL_TLS_SERVER_CA")  # path
+TEMPORAL_API_KEY = env_str("TEMPORAL_API_KEY")  # Temporal Cloud
+# Seal every payload in workflow history with the field-encryption key ring.
+TEMPORAL_PAYLOAD_ENCRYPTION = env_bool("TEMPORAL_PAYLOAD_ENCRYPTION", True)
+TEMPORAL_ACTIVITY_THREADS = env_int("TEMPORAL_ACTIVITY_THREADS", 8)
+TEMPORAL_SHUTDOWN_GRACE_SECONDS = env_int("TEMPORAL_SHUTDOWN_GRACE_SECONDS", 25)
+TEMPORAL_METRICS_PORT = env_int("TEMPORAL_METRICS_PORT", 0)  # 0 = no Prometheus listener
+TEMPORAL_CALL_TIMEOUT_SECONDS = env_int("TEMPORAL_CALL_TIMEOUT_SECONDS", 15)
+TASKS = {
+    "default": {
+        "BACKEND": (
+            "apps.flows.task_backend.TemporalTaskBackend"
+            if TEMPORAL_ENABLED
+            else "django.tasks.backends.immediate.ImmediateBackend"
+        )
+    }
+}
 
 # MCP server (apps.actions.mcp). Off by default: with the flag off FastMCP is never imported.
 MCP_ENABLED = env_bool("MCP_ENABLED", False)

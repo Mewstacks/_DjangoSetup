@@ -38,6 +38,7 @@ services:
     environment:
       DB_HOST: postgres
       REDIS_URL: redis://redis:6379/0
+      TEMPORAL_ADDRESS: temporal:7233
     command: ["python", "manage.py", "runserver", "0.0.0.0:8000"]
     ports:
       - "127.0.0.1:8000:8000"
@@ -52,6 +53,42 @@ services:
       redis:
         condition: service_healthy
 
+  # --profile temporal: the dev server (SQLite, one container) plus the worker.
+  # Set TEMPORAL_ENABLED=true in .env. For production use the multi-service stack in
+  # deploy/compose (temporalio/server + admin-tools + ui) or the Helm chart.
+  temporal:
+    profiles: ["temporal"]
+    image: temporalio/temporal:1.9.1
+    command: ["server", "start-dev", "--ip", "0.0.0.0", "--db-filename", "/data/temporal.db"]
+    ports:
+      - "127.0.0.1:7233:7233"
+      - "127.0.0.1:8233:8233"   # Web UI
+    volumes:
+      - temporal-data:/data
+    restart: unless-stopped
+
+  worker:
+    profiles: ["temporal"]
+    build: .
+    env_file: .env
+    environment:
+      DB_HOST: postgres
+      REDIS_URL: redis://redis:6379/0
+      TEMPORAL_ENABLED: "true"
+      TEMPORAL_ADDRESS: temporal:7233
+    command: ["python", "manage.py", "flows_worker"]
+    volumes:
+      - .:/app
+      - /app/.venv
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      temporal:
+        condition: service_started
+
 volumes:
   postgres-data:
   redis-data:
+  temporal-data:

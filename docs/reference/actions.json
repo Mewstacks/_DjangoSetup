@@ -261,6 +261,619 @@
         "flow",
         "mcp"
       ],
+      "description": "Cancel a running flow (Temporal engine only).",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "RunRef",
+        "type": "object"
+      },
+      "name": "flows.cancel",
+      "output_schema": {
+        "properties": {
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "flow": {
+            "title": "Flow",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "flow",
+          "engine",
+          "status",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "scope": "flows:write",
+      "title": "Flows Cancel",
+      "write": true
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "mcp"
+      ],
+      "description": "Which engine runs flows here, which flows exist, and what each engine can and cannot do.",
+      "input_schema": null,
+      "name": "flows.catalog",
+      "output_schema": {
+        "$defs": {
+          "FlowInfo": {
+            "properties": {
+              "description": {
+                "title": "Description",
+                "type": "string"
+              },
+              "name": {
+                "title": "Name",
+                "type": "string"
+              },
+              "portable": {
+                "title": "Portable",
+                "type": "boolean"
+              },
+              "startable": {
+                "title": "Startable",
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "name",
+              "description",
+              "portable",
+              "startable"
+            ],
+            "title": "FlowInfo",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "capabilities": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Capabilities",
+            "type": "array"
+          },
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "flows": {
+            "items": {
+              "$ref": "#/$defs/FlowInfo"
+            },
+            "title": "Flows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "engine",
+          "flows",
+          "capabilities"
+        ],
+        "title": "FlowCatalog",
+        "type": "object"
+      },
+      "scope": "flows:read",
+      "title": "Flows Catalog",
+      "write": false
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "List recent flow runs of this organization.",
+      "input_schema": {
+        "properties": {
+          "flow": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Flow"
+          },
+          "limit": {
+            "default": 20,
+            "maximum": 50,
+            "minimum": 1,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "title": "ListRuns",
+        "type": "object"
+      },
+      "name": "flows.runs",
+      "output_schema": {
+        "$defs": {
+          "RunOut": {
+            "properties": {
+              "engine": {
+                "title": "Engine",
+                "type": "string"
+              },
+              "error": {
+                "title": "Error",
+                "type": "string"
+              },
+              "finished_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Finished At"
+              },
+              "flow": {
+                "title": "Flow",
+                "type": "string"
+              },
+              "id": {
+                "format": "uuid",
+                "title": "Id",
+                "type": "string"
+              },
+              "result": {
+                "anyOf": [
+                  {},
+                  {
+                    "type": "null"
+                  }
+                ],
+                "default": null,
+                "title": "Result"
+              },
+              "started_at": {
+                "anyOf": [
+                  {
+                    "format": "date-time",
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Started At"
+              },
+              "status": {
+                "title": "Status",
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "flow",
+              "engine",
+              "status",
+              "error",
+              "started_at",
+              "finished_at"
+            ],
+            "title": "RunOut",
+            "type": "object"
+          }
+        },
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/$defs/RunOut"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "RunList",
+        "type": "object"
+      },
+      "scope": "flows:read",
+      "title": "Flows Runs",
+      "write": false
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Send a signal to a running flow (Temporal engine only).",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 80,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "payload": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Payload"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "SignalFlow",
+        "type": "object"
+      },
+      "name": "flows.signal",
+      "output_schema": {
+        "properties": {
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "flow": {
+            "title": "Flow",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "flow",
+          "engine",
+          "status",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "scope": "flows:write",
+      "title": "Flows Signal",
+      "write": true
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Start one of the flows marked startable. Safe to call with an Idempotency-Key.",
+      "input_schema": {
+        "properties": {
+          "flow": {
+            "maxLength": 120,
+            "minLength": 3,
+            "title": "Flow",
+            "type": "string"
+          },
+          "input": {
+            "additionalProperties": true,
+            "title": "Input",
+            "type": "object"
+          }
+        },
+        "required": [
+          "flow"
+        ],
+        "title": "StartFlow",
+        "type": "object"
+      },
+      "name": "flows.start",
+      "output_schema": {
+        "properties": {
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "flow": {
+            "title": "Flow",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "flow",
+          "engine",
+          "status",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "scope": "flows:write",
+      "title": "Flows Start",
+      "write": true
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
+      "description": "Current status of one run (refreshed from Temporal when that engine ran it).",
+      "input_schema": {
+        "properties": {
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "title": "RunRef",
+        "type": "object"
+      },
+      "name": "flows.status",
+      "output_schema": {
+        "properties": {
+          "engine": {
+            "title": "Engine",
+            "type": "string"
+          },
+          "error": {
+            "title": "Error",
+            "type": "string"
+          },
+          "finished_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Finished At"
+          },
+          "flow": {
+            "title": "Flow",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "result": {
+            "anyOf": [
+              {},
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Result"
+          },
+          "started_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Started At"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "flow",
+          "engine",
+          "status",
+          "error",
+          "started_at",
+          "finished_at"
+        ],
+        "title": "RunOut",
+        "type": "object"
+      },
+      "scope": "flows:read",
+      "title": "Flows Status",
+      "write": false
+    },
+    {
+      "channels": [
+        "api",
+        "cli",
+        "flow",
+        "mcp"
+      ],
       "description": "Archive a note. Archived notes are hidden from the default list and read-only.",
       "input_schema": {
         "properties": {

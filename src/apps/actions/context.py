@@ -55,6 +55,16 @@ class ActionContext:
         queryset: QuerySet[ScopedT] = model.objects.filter(organization=self.organization)  # type: ignore[attr-defined]
         return queryset
 
+    def scoped_nullable(self, model: type[Model]) -> QuerySet[Any]:
+        """Rows of this organization for a model whose organization is optional.
+
+        System-level rows (organization is null, for example scheduled job runs) are never
+        returned: the filter is an equality, not "this organization or none".
+        """
+        if not any(f.name == "organization" for f in model._meta.get_fields()):
+            raise TypeError(f"{model.__name__} has no organization field.")
+        return model._default_manager.filter(organization=self.organization)
+
     def get(self, model: type[ScopedT], pk: Any) -> ScopedT:
         """One row of the caller's organization, or NotFound (never 'exists elsewhere')."""
         try:
