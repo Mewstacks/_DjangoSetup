@@ -41,6 +41,7 @@ LOCAL_APPS = [
     "apps.privacy",
     "apps.actions",
     "apps.flows",
+    "apps.observability",
     "apps.apikeys",
     "apps.examples",
 ]
@@ -355,6 +356,12 @@ MCP_PUBLIC_URL = env_str("MCP_PUBLIC_URL")  # public base URL of this service fo
 # 0 keeps audit events forever. Brazil's Marco Civil (art. 15) asks application providers to
 # keep access-application logs for six months; set this to your own retention decision.
 AUDIT_RETENTION_DAYS = env_int("AUDIT_RETENTION_DAYS", 0)
+
+# OpenTelemetry (optional extra: pip install '.[otel]'). Endpoint, protocol and headers use the
+# standard OTEL_EXPORTER_OTLP_* variables; this switch and the sampling ratio are ours.
+OTEL_ENABLED = env_bool("OTEL_ENABLED", False)
+OTEL_SERVICE_NAME = env_str("OTEL_SERVICE_NAME", deployment_name)
+OTEL_TRACES_SAMPLE_RATIO = float(env_str("OTEL_TRACES_SAMPLE_RATIO", "0.1"))
 
 # Durable flows and background jobs (apps.flows). Off by default: flows then run on the local
 # engine and tasks run inline, so a fresh clone needs nothing but the database.

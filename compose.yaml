@@ -88,7 +88,22 @@ services:
       temporal:
         condition: service_started
 
+  # --profile observability: Grafana + Tempo + Loki + Prometheus in one container (dev only).
+  # Set OTEL_ENABLED=true and OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318 in .env, then
+  # open http://localhost:3000 (admin / admin).
+  lgtm:
+    profiles: ["observability"]
+    image: grafana/otel-lgtm:0.37.0
+    ports:
+      - "127.0.0.1:3000:3000"
+      - "127.0.0.1:4317:4317"
+      - "127.0.0.1:4318:4318"
+    volumes:
+      - lgtm-data:/data
+    restart: unless-stopped
+
 volumes:
   postgres-data:
+  lgtm-data:
   redis-data:
   temporal-data:

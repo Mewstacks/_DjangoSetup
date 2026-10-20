@@ -29,7 +29,24 @@ def _run_readiness_checks() -> dict[str, str]:
         checks["cache"] = "ok" if cache.get("health:ready") == "ok" else "unavailable"
     except Exception:
         checks["cache"] = "unavailable"
+    if settings.TEMPORAL_ENABLED:
+        checks["worker"] = _worker_state()
     return checks
+
+
+# Reported, but never a reason to take the web tier out of rotation: a stalled worker delays
+# background work, it does not stop requests from being served.
+INFORMATIONAL = {"worker"}
+
+
+def _worker_state() -> str:
+    try:
+        beat = cache.get("flows:worker:heartbeat")
+    except Exception:
+        return "unknown"
+    if beat is None:
+        return "unknown"
+    return "ok" if time.time() - float(beat) < 90 else "stale"
 
 
 def readiness_checks() -> dict[str, str]:
@@ -84,7 +101,7 @@ class ReadinessView(APIView):
     )
     def get(self, request: object) -> Response:
         checks = readiness_checks()
-        healthy = all(result == "ok" for result in checks.values())
+        healthy = all(r == "ok" for name, r in checks.items() if name not in INFORMATIONAL)
         body: dict[str, object] = {"status": "ok" if healthy else "degraded"}
         # Which dependency is down is reconnaissance for an anonymous caller; platform probes
         # only need the status code. Operators opt in with HEALTH_DETAIL_PUBLIC or use
