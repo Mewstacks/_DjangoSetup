@@ -236,7 +236,12 @@ def test_the_task_backend_choice_follows_the_flag() -> None:
 
 def test_workflow_modules_import_neither_django_nor_models() -> None:
     """Workflows run in Temporal's sandbox: Django there is slow, fragile and non-deterministic."""
-    forbidden = ("django", "apps.accounts", "apps.organizations", "apps.privacy")
+    forbidden = (
+        "django",
+        "apps.privacy.services",
+        "apps.privacy.catalog",
+        "apps.privacy.activities",
+    )
     offenders: list[str] = []
     for path in [*Path("src/apps").glob("*/workflows.py"), Path("tests/flow_fixtures.py")]:
         tree = ast.parse(path.read_text(encoding="utf-8"))

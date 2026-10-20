@@ -1099,6 +1099,113 @@ paths:
               schema:
                 $ref: '#/components/schemas/Consent'
           description: ''
+  /api/v1/privacy/consents/state/:
+    get:
+      operationId: privacy_consents_state_list
+      description: The effective decision per purpose, and which ones need asking
+        again.
+      parameters:
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConsentStateList'
+          description: ''
+  /api/v1/privacy/consents/state{format}:
+    get:
+      operationId: privacy_consents_state_formatted_list
+      description: The effective decision per purpose, and which ones need asking
+        again.
+      parameters:
+      - in: path
+        name: format
+        schema:
+          type: string
+          enum:
+          - .json
+        required: true
+      - name: page
+        required: false
+        in: query
+        description: Um número de página dentro do conjunto de resultados paginado.
+        schema:
+          type: integer
+      - name: page_size
+        required: false
+        in: query
+        description: Número de resultados a serem retornados por página.
+        schema:
+          type: integer
+      tags:
+      - privacy
+      security:
+      - ApiKeyAuth: []
+      - cookieAuth: []
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedConsentStateList'
+          description: ''
+  /api/v1/privacy/cookies/:
+    get:
+      operationId: privacy_cookies_retrieve
+      description: 'What a consent banner needs: categories, their purposes and the
+        notice to reference.'
+      tags:
+      - privacy
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CookieConfig'
+          description: ''
+  /api/v1/privacy/exports/{token}/:
+    get:
+      operationId: privacy_exports_retrieve
+      description: |-
+        The archive for a valid link. Possession of the link, delivered to the verified address,
+        is the credential; an account holder must additionally be signed in as the requester.
+      parameters:
+      - in: path
+        name: token
+        schema:
+          type: string
+        required: true
+      tags:
+      - privacy
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: string
+                format: binary
+          description: ''
   /api/v1/privacy/notice/:
     get:
       operationId: privacy_notice_retrieve
@@ -1115,6 +1222,52 @@ paths:
               schema:
                 $ref: '#/components/schemas/PrivacyNotice'
           description: ''
+  /api/v1/privacy/public/requests/:
+    post:
+      operationId: privacy_public_requests_create
+      description: Ask to exercise a right without an account. Always answers the
+        same thing.
+      tags:
+      - privacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PublicRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PublicRequest'
+        required: true
+      security:
+      - {}
+      responses:
+        '202':
+          description: No response body
+  /api/v1/privacy/public/verify/:
+    post:
+      operationId: privacy_public_verify_create
+      tags:
+      - privacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PublicVerify'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/PublicVerify'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/PublicVerify'
+        required: true
+      security:
+      - {}
+      responses:
+        '200':
+          description: No response body
   /api/v1/privacy/purposes/:
     get:
       operationId: privacy_purposes_list
@@ -1402,6 +1555,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/DataSubjectRequest'
+          description: ''
+  /api/v1/privacy/transparency/:
+    get:
+      operationId: privacy_transparency_retrieve
+      description: Who is responsible, who to ask, what we process and who else sees
+        it (art. 9, 41).
+      tags:
+      - privacy
+      security:
+      - {}
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transparency'
           description: ''
   /api/v1/actions/actions.changes/:
     post:
@@ -2908,6 +3077,10 @@ components:
           type: string
           format: uuid
           writeOnly: true
+        guardian_confirmed:
+          type: boolean
+          writeOnly: true
+          default: false
         purpose:
           type: string
           format: uuid
@@ -2933,6 +3106,43 @@ components:
       - notice
       - purpose
       - recorded_at
+    ConsentState:
+      type: object
+      properties:
+        purpose:
+          type: string
+        name:
+          type: string
+        decision:
+          type:
+          - string
+          - 'null'
+        recorded_at:
+          type:
+          - string
+          - 'null'
+          format: date-time
+        notice_version:
+          type:
+          - string
+          - 'null'
+        needs_renewal:
+          type: boolean
+      required:
+      - decision
+      - name
+      - needs_renewal
+      - notice_version
+      - purpose
+      - recorded_at
+    CookieConfig:
+      type: object
+      properties:
+        categories:
+          type: array
+          items: {}
+      required:
+      - categories
     CsrfToken:
       type: object
       properties:
@@ -3178,6 +3388,29 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/Consent'
+    PaginatedConsentStateList:
+      type: object
+      required:
+      - count
+      - results
+      properties:
+        count:
+          type: integer
+          example: 123
+        next:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=4
+        previous:
+          type: string
+          nullable: true
+          format: uri
+          example: http://api.example.org/accounts/?page=2
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConsentState'
     PaginatedDataSubjectRequestList:
       type: object
       required:
@@ -3394,6 +3627,53 @@ components:
       - lawful_basis
       - name
       - retention_days
+    PublicRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        request_type:
+          enum:
+          - confirmation
+          - access
+          - correction
+          - anonymization
+          - blocking
+          - deletion
+          - portability
+          - consent_withdrawal
+          - sharing_information
+          - automated_review
+          - opposition
+          type: string
+          description: |-
+            * `confirmation` - Confirmation of processing
+            * `access` - Access
+            * `correction` - Correction
+            * `anonymization` - Anonymization
+            * `blocking` - Blocking
+            * `deletion` - Deletion
+            * `portability` - Portability
+            * `consent_withdrawal` - Consent withdrawal
+            * `sharing_information` - Sharing information
+            * `automated_review` - Automated decision review
+            * `opposition` - Opposition
+          x-spec-enum-id: 703625ab97b0d950
+        details:
+          type: string
+          maxLength: 10000
+      required:
+      - email
+      - request_type
+    PublicVerify:
+      type: object
+      properties:
+        token:
+          type: string
+          maxLength: 300
+      required:
+      - token
     Readiness:
       type: object
       properties:
@@ -3405,6 +3685,14 @@ components:
             type: string
       required:
       - status
+    Transparency:
+      type: object
+      properties:
+        controller:
+          type: object
+          additionalProperties: {}
+      required:
+      - controller
     ErrorEnvelope:
       type: object
       required:

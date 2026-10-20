@@ -116,6 +116,33 @@ def decrypt_text(value: str, *, associated_data: bytes = b"") -> str:
     return plaintext.decode()
 
 
+def seal_bytes(data: bytes, *, purpose: bytes) -> bytes:
+    """Encrypt a blob (an export archive, an attachment) under a subkey for ``purpose``.
+
+    Layout: ``S1`` | key-id length | key id | 12-byte nonce | ciphertext+tag. The purpose is
+    both the HKDF info and the AAD, so a blob sealed for one use cannot be opened as another.
+    """
+    key_id = settings.FIELD_ENCRYPTION_ACTIVE_KEY_ID
+    if not key_id:
+        raise ImproperlyConfigured("FIELD_ENCRYPTION_ACTIVE_KEY_ID is not configured.")
+    nonce = os.urandom(12)
+    sealed = AESGCM(derive_key(key_id, purpose)).encrypt(nonce, data, purpose)
+    ident = key_id.encode()
+    return b"S1" + bytes([len(ident)]) + ident + nonce + sealed
+
+
+def open_bytes(blob: bytes, *, purpose: bytes) -> bytes:
+    try:
+        if blob[:2] != b"S1":
+            raise ValueError("not a sealed blob")
+        length = blob[2]
+        key_id = blob[3 : 3 + length].decode()
+        nonce = blob[3 + length : 15 + length]
+        return AESGCM(derive_key(key_id, purpose)).decrypt(nonce, blob[15 + length :], purpose)
+    except (ValueError, InvalidTag, ImproperlyConfigured, IndexError) as exc:
+        raise SuspiciousOperation("Sealed blob failed authentication.") from exc
+
+
 def blind_index(value: str, *, namespace: str) -> str:
     secret = settings.PRIVACY_HMAC_KEY
     if not secret:

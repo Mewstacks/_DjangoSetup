@@ -15,6 +15,13 @@ from apps.privacy.api import (
     DataSubjectRequestViewSet,
     ProcessingPurposeViewSet,
 )
+from apps.privacy.public_api import (
+    CookieConfigView,
+    ExportDownloadView,
+    PublicRequestView,
+    PublicVerifyView,
+    TransparencyView,
+)
 
 router = DefaultRouter(use_regex_path=False)
 router.register("api-keys", ApiKeyViewSet, basename="api-key")
@@ -30,6 +37,11 @@ urlpatterns = [
     path("health/live/", LivenessView.as_view(), name="health-live"),
     path("health/ready/", ReadinessView.as_view(), name="health-ready"),
     path("privacy/notice/", ActiveNoticeView.as_view(), name="privacy-notice"),
+    path("privacy/transparency/", TransparencyView.as_view(), name="privacy-transparency"),
+    path("privacy/cookies/", CookieConfigView.as_view(), name="privacy-cookies"),
+    path("privacy/public/requests/", PublicRequestView.as_view(), name="privacy-public-request"),
+    path("privacy/public/verify/", PublicVerifyView.as_view(), name="privacy-public-verify"),
+    path("privacy/exports/<str:token>/", ExportDownloadView.as_view(), name="privacy-export"),
     path("auth/me/", MeView.as_view(), name="auth-me"),
     path("auth/csrf/", CsrfTokenView.as_view(), name="auth-csrf"),
     path("auth/login/", LoginView.as_view(), name="auth-login"),

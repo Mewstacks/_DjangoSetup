@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import json
 import uuid
 from collections.abc import Iterable
 from datetime import timedelta
@@ -7,12 +9,14 @@ from typing import Any, NoReturn
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.db import models
+from django.db import models, transaction
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
-from apps.common.encryption import EncryptedTextField
+from apps.common.encryption import EncryptedTextField, blind_index
 from apps.common.models import AppendOnlyQuerySet, UUIDTimeStampedModel
+
+GENESIS = "0" * 64
 
 
 def privacy_request_target() -> object:
@@ -40,6 +44,13 @@ class ProcessingPurpose(UUIDTimeStampedModel):
         RESEARCH = "research", "Research"
         PUBLIC_POLICY = "public_policy", "Public policy"
 
+    class CookieCategory(models.TextChoices):
+        NONE = "", "Not a cookie purpose"
+        NECESSARY = "necessary", "Strictly necessary"
+        PREFERENCES = "preferences", "Preferences"
+        ANALYTICS = "analytics", "Analytics"
+        MARKETING = "marketing", "Marketing"
+
     code = models.SlugField(max_length=80, unique=True)
     name = models.CharField(max_length=160)
     description = models.TextField()
@@ -47,9 +58,23 @@ class ProcessingPurpose(UUIDTimeStampedModel):
     data_categories = models.JSONField(default=list)
     retention_days = models.PositiveIntegerField()
     active = models.BooleanField(default=True)
+    # Art. 14: processing of children's data needs the specific, prominent consent of a parent
+    # or guardian. A purpose that involves children makes the API ask for that confirmation.
+    involves_children = models.BooleanField(default=False)
+    cookie_category = models.CharField(
+        max_length=16, choices=CookieCategory.choices, blank=True, default=""
+    )
 
     class Meta:
         ordering = ("code",)
+
+    def digest(self) -> str:
+        """What a consent actually attested to: change any of this and the digest changes."""
+        body = json.dumps(
+            [self.code, self.description, self.lawful_basis, sorted(self.data_categories)],
+            sort_keys=True,
+        )
+        return hashlib.sha256(body.encode()).hexdigest()
 
     def __str__(self) -> str:
         return self.name
@@ -65,8 +90,113 @@ class PrivacyNotice(UUIDTimeStampedModel):
     class Meta:
         ordering = ("-effective_at",)
 
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        """A notice, once written, only ever changes by being switched off.
+
+        Consents reference it by id and record its checksum; editing the text, URL or version in
+        place would change what every earlier consent appears to have agreed to. Publish a new
+        version instead. At most one notice is active: activating one retires the others.
+        """
+        with transaction.atomic():
+            if not self._state.adding:
+                stored = type(self).objects.get(pk=self.pk)
+                frozen = ("version", "document_url", "checksum_sha256", "effective_at")
+                if any(getattr(stored, name) != getattr(self, name) for name in frozen):
+                    raise ValidationError("A privacy notice is immutable; publish a new version.")
+            if self.active:
+                type(self).objects.exclude(pk=self.pk).filter(active=True).update(active=False)
+            super().save(
+                force_insert=force_insert,
+                force_update=force_update,
+                using=using,
+                update_fields=update_fields,
+            )
+
     def __str__(self) -> str:
         return self.version
+
+
+class DataSubject(UUIDTimeStampedModel):
+    """A person whose data we hold, whether or not they have an account.
+
+    Leads, contacts and people who only ever filled in a form have no ``User`` but have the
+    same rights. The e-mail is stored encrypted, with a blind index for lookup; ``user`` links
+    the record to an account when there is one.
+    """
+
+    email = EncryptedTextField()
+    email_index = models.CharField(max_length=64, unique=True, editable=False)
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="data_subject",
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    blocked_at = models.DateTimeField(null=True, blank=True)
+    anonymized_at = models.DateTimeField(null=True, blank=True)
+
+    NAMESPACE = "data-subject-email-v1"
+
+    @classmethod
+    def index_for(cls, email: str) -> str:
+        return blind_index(email, namespace=cls.NAMESPACE)
+
+    @classmethod
+    def for_email(cls, email: str) -> DataSubject:
+        subject, _ = cls.objects.get_or_create(
+            email_index=cls.index_for(email), defaults={"email": email.strip().casefold()}
+        )
+        return subject
+
+    @classmethod
+    def for_user(cls, user: Any) -> DataSubject:
+        existing = cls.objects.filter(user=user).first()
+        if existing is not None:
+            return existing
+        linked = cls.for_email(user.email)
+        if linked.user_id is None:
+            linked.user = user
+            linked.verified_at = linked.verified_at or timezone.now()
+            linked.save(update_fields=["user", "verified_at", "updated_at"])
+        return linked
+
+    def __str__(self) -> str:
+        return str(self.pk)
+
+
+class SubProcessor(UUIDTimeStampedModel):
+    """A third party that processes personal data on our behalf, and where."""
+
+    class Transfer(models.TextChoices):
+        NONE = "none", "No international transfer"
+        ADEQUACY = "adequacy", "Adequacy decision"
+        STANDARD_CLAUSES = "standard_clauses", "Standard contractual clauses"
+        BINDING_RULES = "binding_rules", "Binding corporate rules"
+        CONSENT = "consent", "Specific consent"
+        OTHER = "other", "Other legal basis (art. 33)"
+
+    name = models.CharField(max_length=160)
+    purpose = models.CharField(max_length=240)
+    country = models.CharField(max_length=2, help_text="ISO 3166-1 alpha-2")
+    transfer_mechanism = models.CharField(max_length=20, choices=Transfer.choices)
+    data_categories = models.JSONField(default=list)
+    contract_url = models.URLField(blank=True)
+    active = models.BooleanField(default=True)
+
+    class Meta:
+        ordering = ("name",)
+
+    def __str__(self) -> str:
+        return self.name
 
 
 class ConsentRecord(models.Model):
@@ -97,6 +227,14 @@ class ConsentRecord(models.Model):
     source = models.CharField(max_length=32, default="api")
     recorded_at = models.DateTimeField(auto_now_add=True, db_index=True)
     evidence = models.JSONField(default=dict, blank=True)
+    # What the person was shown, frozen at the time: editing a purpose later must not change
+    # what this record proves.
+    notice_checksum = models.CharField(max_length=64, blank=True)
+    purpose_digest = models.CharField(max_length=64, blank=True)
+    # A hash chain per user makes silent edits or deletions of a person's history detectable.
+    seq = models.PositiveIntegerField(default=0)
+    prev_hash = models.CharField(max_length=64, blank=True)
+    hash = models.CharField(max_length=64, blank=True)
 
     class Meta:
         ordering = ("-recorded_at",)
@@ -111,6 +249,26 @@ class ConsentRecord(models.Model):
     def __str__(self) -> str:
         return f"{self.user_id}: {self.purpose_id} {self.decision}"
 
+    def compute_hash(self) -> str:
+        body = json.dumps(
+            [
+                str(self.id),
+                str(self.user_id),
+                str(self.purpose_id),
+                str(self.notice_id),
+                self.decision,
+                self.source,
+                self.notice_checksum,
+                self.purpose_digest,
+                self.evidence,
+                self.seq,
+                self.prev_hash,
+            ],
+            sort_keys=True,
+            default=str,
+        )
+        return hashlib.sha256(body.encode()).hexdigest()
+
     def save(
         self,
         *,
@@ -122,12 +280,22 @@ class ConsentRecord(models.Model):
         if not self._state.adding:
             raise ValidationError("Consent records are append-only.")
         self.full_clean()
-        super().save(
-            force_insert=force_insert,
-            force_update=force_update,
-            using=using,
-            update_fields=update_fields,
-        )
+        with transaction.atomic():
+            # Lock the person's row so two concurrent decisions cannot both extend the chain
+            # from the same predecessor.
+            type(self.user).objects.select_for_update().filter(pk=self.user_id).first()
+            last = ConsentRecord.objects.filter(user_id=self.user_id).order_by("-seq").first()
+            self.seq = (last.seq + 1) if last else 1
+            self.prev_hash = last.hash if last and last.hash else GENESIS
+            self.notice_checksum = self.notice_checksum or self.notice.checksum_sha256
+            self.purpose_digest = self.purpose_digest or self.purpose.digest()
+            self.hash = self.compute_hash()
+            super().save(
+                force_insert=force_insert,
+                force_update=force_update,
+                using=using,
+                update_fields=update_fields,
+            )
 
     def delete(self, using: Any | None = None, keep_parents: bool = False) -> NoReturn:
         raise ValidationError("Consent records cannot be deleted through the application.")
@@ -156,10 +324,32 @@ class DataSubjectRequest(UUIDTimeStampedModel):
         DENIED = "denied", "Denied"
         CANCELLED = "cancelled", "Cancelled"
 
+    # The only ways a request may move. Anything else is a bug or an attempt to rewrite
+    # history, so it raises instead of silently saving.
+    TRANSITIONS: dict[str, frozenset[str]] = {
+        "received": frozenset({"verifying", "in_progress", "denied", "cancelled"}),
+        "verifying": frozenset({"in_progress", "denied", "cancelled"}),
+        "in_progress": frozenset({"legal_review", "completed", "denied", "cancelled"}),
+        "legal_review": frozenset({"in_progress", "completed", "denied"}),
+        "completed": frozenset(),
+        "denied": frozenset(),
+        "cancelled": frozenset(),
+    }
+    TERMINAL = frozenset({"completed", "denied", "cancelled"})
+
     requester = models.ForeignKey(
         settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
         on_delete=models.PROTECT,
         related_name="data_subject_requests",
+    )
+    subject = models.ForeignKey(
+        DataSubject,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="requests",
     )
     request_type = models.CharField(max_length=32, choices=RequestType.choices)
     status = models.CharField(max_length=24, choices=Status.choices, default=Status.RECEIVED)
@@ -168,6 +358,9 @@ class DataSubjectRequest(UUIDTimeStampedModel):
     target_due_at = models.DateTimeField(default=privacy_request_target, db_index=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     denial_reason_code = models.CharField(max_length=80, blank=True)
+    identity_verified_at = models.DateTimeField(null=True, blank=True)
+    export_name = models.CharField(max_length=120, blank=True)
+    export_expires_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ("-created_at",)
@@ -178,6 +371,110 @@ class DataSubjectRequest(UUIDTimeStampedModel):
 
     def __str__(self) -> str:
         return f"{self.id} ({self.request_type})"
+
+    @property
+    def is_terminal(self) -> bool:
+        return self.status in self.TERMINAL
+
+    def transition_to(self, new_status: str, *, summary: str = "", reason_code: str = "") -> None:
+        """Move to ``new_status`` if the state machine allows it; stamp the side effects."""
+        if new_status not in self.TRANSITIONS.get(self.status, frozenset()):
+            raise ValidationError(f"A request cannot go from {self.status} to {new_status}.")
+        if new_status == self.Status.DENIED and not reason_code:
+            raise ValidationError("A denial needs a reason code.")
+        self.status = new_status
+        if summary:
+            self.response_summary = summary
+        if reason_code:
+            self.denial_reason_code = reason_code
+        if new_status in self.TERMINAL:
+            self.completed_at = timezone.now()
+        self.save(
+            update_fields=[
+                "status",
+                "response_summary",
+                "denial_reason_code",
+                "completed_at",
+                "updated_at",
+            ]
+        )
+
+    def save(
+        self,
+        *,
+        force_insert: bool | tuple[ModelBase, ...] = False,
+        force_update: bool = False,
+        using: str | None = None,
+        update_fields: Iterable[str] | None = None,
+    ) -> None:
+        if not self._state.adding:
+            stored = type(self).objects.filter(pk=self.pk).values("status").first()
+            if stored and stored["status"] != self.status:
+                allowed = self.TRANSITIONS.get(stored["status"], frozenset())
+                if self.status not in allowed:
+                    raise ValidationError(
+                        f"A request cannot go from {stored['status']} to {self.status}."
+                    )
+        super().save(
+            force_insert=force_insert,
+            force_update=force_update,
+            using=using,
+            update_fields=update_fields,
+        )
+
+    def delete(self, using: Any | None = None, keep_parents: bool = False) -> NoReturn:
+        raise ValidationError("Data subject requests are the proof of compliance; keep them.")
+
+
+class LegalHold(UUIDTimeStampedModel):
+    """Data about this person must be kept (litigation, a legal duty - LGPD art. 16, I)."""
+
+    subject = models.ForeignKey(DataSubject, on_delete=models.PROTECT, related_name="holds")
+    reason = EncryptedTextField()
+    placed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    released_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+
+    @classmethod
+    def active_for(cls, subject: DataSubject) -> bool:
+        return cls.objects.filter(subject=subject, released_at__isnull=True).exists()
+
+    def __str__(self) -> str:
+        return f"hold on {self.subject_id}"
+
+
+class PrivacyReminder(UUIDTimeStampedModel):
+    """Remembers which deadline reminders were already sent, so a re-run never repeats them."""
+
+    request = models.ForeignKey(
+        DataSubjectRequest, null=True, blank=True, on_delete=models.CASCADE, related_name="+"
+    )
+    incident = models.ForeignKey(
+        "privacy.PersonalDataIncident",
+        null=True,
+        blank=True,
+        on_delete=models.CASCADE,
+        related_name="+",
+    )
+    kind = models.CharField(max_length=32)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=("request", "kind"),
+                condition=models.Q(request__isnull=False),
+                name="unique_request_reminder",
+            ),
+            models.UniqueConstraint(
+                fields=("incident", "kind"),
+                condition=models.Q(incident__isnull=False),
+                name="unique_incident_reminder",
+            ),
+        ]
 
 
 class PersonalDataIncident(UUIDTimeStampedModel):
@@ -204,7 +501,10 @@ class PersonalDataIncident(UUIDTimeStampedModel):
     notification_deadline_at = models.DateTimeField(
         null=True,
         blank=True,
-        help_text="Set after legal review; ANPD Resolution 15/2024 generally uses 3 business days.",
+        help_text=(
+            "Computed from confirmation using PRIVACY_INCIDENT_BUSINESS_DAYS (ANPD Resolution "
+            "CD/ANPD 15/2024 generally uses 3 business days). Confirm with legal counsel."
+        ),
     )
     anpd_notified_at = models.DateTimeField(null=True, blank=True)
     subjects_notified_at = models.DateTimeField(null=True, blank=True)
@@ -228,6 +528,16 @@ class PersonalDataIncident(UUIDTimeStampedModel):
         using: str | None = None,
         update_fields: Iterable[str] | None = None,
     ) -> None:
+        if (
+            self.confirmed_at
+            and self.relevant_risk_or_harm
+            and self.notification_deadline_at is None
+        ):
+            from apps.privacy.deadlines import add_business_days
+
+            self.notification_deadline_at = add_business_days(
+                self.confirmed_at, settings.PRIVACY_INCIDENT_BUSINESS_DAYS
+            )
         self.full_clean()
         super().save(
             force_insert=force_insert,
@@ -235,6 +545,9 @@ class PersonalDataIncident(UUIDTimeStampedModel):
             using=using,
             update_fields=update_fields,
         )
+
+    def delete(self, using: Any | None = None, keep_parents: bool = False) -> NoReturn:
+        raise ValidationError("Incident records must be kept for at least five years.")
 
     def __str__(self) -> str:
         return self.reference

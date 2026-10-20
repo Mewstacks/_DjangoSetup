@@ -29,7 +29,8 @@ class IdempotencyRecord(UUIDTimeStampedModel):
     key = models.CharField(max_length=128)
     action = models.CharField(max_length=120)
     request_hash = models.CharField(max_length=64)
-    response = models.JSONField(null=True, blank=True)
+    # The stored response can hold anything the action returned, personal data included.
+    response_json = EncryptedTextField(blank=True)
 
     class Meta:
         constraints = [
@@ -38,6 +39,14 @@ class IdempotencyRecord(UUIDTimeStampedModel):
             )
         ]
         indexes = [models.Index(fields=("created_at",))]
+
+    @property
+    def response(self) -> dict[str, Any] | None:
+        return json.loads(self.response_json) if self.response_json else None
+
+    @response.setter
+    def response(self, value: dict[str, Any]) -> None:
+        self.response_json = json.dumps(value, default=str)
 
 
 class AgentRun(OrganizationScopedModel):

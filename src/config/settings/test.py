@@ -35,3 +35,11 @@ FIELD_ENCRYPTION_KEYS = {
 PRIVACY_HMAC_KEY = "test-independent-hmac-key"
 HEALTH_READINESS_CACHE_SECONDS = 0
 HEALTH_DETAIL_PUBLIC = True
+
+# Exports and uploads must never touch the working tree.
+STORAGES = {
+    **STORAGES,
+    "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+}
+DPO_EMAIL = "dpo@example.test"
+PRIVACY_CONTROLLER_NAME = "Test Controller Ltda"

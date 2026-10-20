@@ -17,6 +17,7 @@ from typing import Any
 import pytest
 from django.tasks import task
 from django.test import override_settings
+from django.utils import timezone
 from temporalio.client import WorkflowFailureError
 from temporalio.testing import WorkflowEnvironment
 from temporalio.worker import Replayer
@@ -235,3 +236,47 @@ def test_schedules_are_created_updated_and_pruned(dev_server: WorkflowEnvironmen
 
     assert runner.run(add_orphan_then_prune) == ["job:gone"]
     assert json.dumps(first)  # report is plain data
+
+
+def test_a_request_needing_review_waits_for_a_person_and_reminds_the_dpo(
+    temporal: WorkflowEnvironment, user: User, organization: Organization
+) -> None:
+    """The DSAR workflow on Temporal: it parks at the human step, wakes at D-5 to remind the
+    DPO, and ends when the reviewer signals - without a single poll or cron entry."""
+    import time
+
+    from django.core import mail
+    from django.core.management import call_command
+
+    from apps.privacy import services
+    from apps.privacy.lifecycle import start_dsar
+    from apps.privacy.models import DataSubject, DataSubjectRequest
+
+    call_command("privacy_seed")
+    request = DataSubjectRequest.objects.create(
+        requester=user,
+        subject=DataSubject.for_user(user),
+        request_type=DataSubjectRequest.RequestType.CORRECTION,
+        identity_verified_at=timezone.now(),
+    )
+    mail.outbox.clear()
+    assert start_dsar(request)
+
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline:
+        request.refresh_from_db()
+        if request.status == DataSubjectRequest.Status.LEGAL_REVIEW:
+            break
+        time.sleep(0.2)
+    assert request.status == DataSubjectRequest.Status.LEGAL_REVIEW
+
+    runner.run(lambda: temporal.sleep(timedelta(days=11)))  # past D-5 of the 15-day deadline
+    deadline = time.monotonic() + 30
+    while time.monotonic() < deadline and not mail.outbox:
+        time.sleep(0.2)
+    assert any("due in 5 days" in m.subject for m in mail.outbox)
+
+    services.finish_review(request, outcome="completed", summary="Corrected.")
+    run = FlowRun.objects.get(workflow_id=f"dsar:{request.pk}")
+    TemporalEngine().signal(run, "review_done")
+    assert TemporalEngine().result(run, timeout=60)["state"] == "completed"

@@ -161,7 +161,7 @@ def _run(
             )
         if claimed is not None:
             claimed.response = output
-            claimed.save(update_fields=["response", "updated_at"])
+            claimed.save(update_fields=["response_json", "updated_at"])
     return output, False
 
 

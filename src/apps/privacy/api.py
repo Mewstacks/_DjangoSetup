@@ -1,29 +1,36 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from typing import Any, cast
 
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import QuerySet
+from django.utils import timezone
 from drf_spectacular.utils import extend_schema
 from rest_framework import serializers, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.accounts.models import User
-from apps.audit.services import record_event
+from apps.audit.services import hash_ip, record_event
 from apps.common.encryption import validate_not_ciphertext
 from apps.common.exceptions import error_body
+from apps.common.network import client_ip
 from apps.common.throttling import IPAnonRateThrottle, IPUserRateThrottle
+from apps.privacy.lifecycle import start_after_commit
 from apps.privacy.models import (
     ConsentRecord,
+    DataSubject,
     DataSubjectRequest,
     PrivacyNotice,
     ProcessingPurpose,
 )
+from apps.privacy.services import consent_state
 
 
 class PrivacyThrottle(IPUserRateThrottle):
@@ -81,12 +88,14 @@ class ProcessingPurposeViewSet(viewsets.ReadOnlyModelViewSet[ProcessingPurpose])
 
 class ConsentSerializer(serializers.ModelSerializer[ConsentRecord]):
     idempotency_key = serializers.UUIDField(write_only=True, required=False)
+    guardian_confirmed = serializers.BooleanField(write_only=True, required=False, default=False)
 
     class Meta:
         model = ConsentRecord
         fields = (
             "id",
             "idempotency_key",
+            "guardian_confirmed",
             "purpose",
             "notice",
             "decision",
@@ -109,6 +118,11 @@ class ConsentSerializer(serializers.ModelSerializer[ConsentRecord]):
                 raise serializers.ValidationError({"purpose": "This purpose is inactive."})
             if not attrs["notice"].active:
                 raise serializers.ValidationError({"notice": "This notice is inactive."})
+            if attrs["purpose"].involves_children and not attrs.get("guardian_confirmed"):
+                # LGPD art. 14 par. 1: a parent or guardian's specific consent.
+                raise serializers.ValidationError(
+                    {"guardian_confirmed": "A parent or guardian must confirm this consent."}
+                )
         return attrs
 
     def _existing_for_key(self, key: uuid.UUID) -> ConsentRecord | None:
@@ -133,7 +147,16 @@ class ConsentSerializer(serializers.ModelSerializer[ConsentRecord]):
     @transaction.atomic
     def create(self, validated_data: dict[str, Any]) -> ConsentRecord:
         key = validated_data.pop("idempotency_key", uuid.uuid4())
-        user = cast(User, self.context["request"].user)
+        guardian = bool(validated_data.pop("guardian_confirmed", False))
+        request = self.context["request"]
+        user = cast(User, request.user)
+        evidence = {
+            "ip_hash": hash_ip(client_ip(request._request)),
+            "ua_hash": hashlib.sha256(request.headers.get("User-Agent", "").encode()).hexdigest()[
+                :32
+            ],
+            "guardian": guardian,
+        }
         existing = self._existing_for_key(key)
         if existing is not None:
             return self._reconcile(existing, user, validated_data)
@@ -143,6 +166,7 @@ class ConsentSerializer(serializers.ModelSerializer[ConsentRecord]):
                     idempotency_key=key,
                     user=user,
                     source="api",
+                    evidence=evidence,
                     **validated_data,
                 )
         except (IntegrityError, DjangoValidationError):
@@ -165,6 +189,15 @@ class ConsentSerializer(serializers.ModelSerializer[ConsentRecord]):
         return record
 
 
+class ConsentStateSerializer(serializers.Serializer[dict[str, Any]]):
+    purpose = serializers.CharField()
+    name = serializers.CharField()
+    decision = serializers.CharField(allow_null=True)
+    recorded_at = serializers.DateTimeField(allow_null=True)
+    notice_version = serializers.CharField(allow_null=True)
+    needs_renewal = serializers.BooleanField()
+
+
 class ConsentViewSet(viewsets.ModelViewSet[ConsentRecord]):
     queryset = ConsentRecord.objects.none()
     serializer_class = ConsentSerializer
@@ -180,6 +213,12 @@ class ConsentViewSet(viewsets.ModelViewSet[ConsentRecord]):
             "purpose",
             "notice",
         )
+
+    @extend_schema(responses=ConsentStateSerializer(many=True))
+    @action(detail=False, methods=["get"])
+    def state(self, request: Request) -> Response:
+        """The effective decision per purpose, and which ones need asking again."""
+        return Response(consent_state(request.user))
 
 
 class DataSubjectRequestSerializer(serializers.ModelSerializer[DataSubjectRequest]):
@@ -214,18 +253,24 @@ class DataSubjectRequestSerializer(serializers.ModelSerializer[DataSubjectReques
             "created_at",
         )
 
+    @transaction.atomic
     def create(self, validated_data: dict[str, Any]) -> DataSubjectRequest:
         user = cast(User, self.context["request"].user)
         privacy_request = DataSubjectRequest.objects.create(
             requester=user,
+            subject=DataSubject.for_user(user),
+            # A signed-in requester has already proven who they are.
+            identity_verified_at=timezone.now(),
             **validated_data,
         )
         record_event(
             action="privacy.subject_request.received",
             actor=user,
             target=privacy_request,
+            request=self.context["request"]._request,
             metadata={"request_type": privacy_request.request_type},
         )
+        start_after_commit(privacy_request)
         return privacy_request
 
 

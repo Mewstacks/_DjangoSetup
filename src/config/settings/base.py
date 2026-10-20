@@ -285,6 +285,7 @@ REST_FRAMEWORK = {
         "privacy_read": env_str("API_THROTTLE_PRIVACY_READ", "120/hour"),
         "privacy_write": env_str("API_THROTTLE_PRIVACY_WRITE", "10/hour"),
         "privacy_withdraw": env_str("API_THROTTLE_PRIVACY_WITHDRAW", "60/hour"),
+        "privacy_public": env_str("API_THROTTLE_PRIVACY_PUBLIC", "10/hour"),
         "organization_create": env_str("API_THROTTLE_ORGANIZATION_CREATE", "10/day"),
         "login": env_str("API_THROTTLE_LOGIN", "10/minute"),
     },
@@ -321,7 +322,21 @@ FIELD_ENCRYPTION_KEYS = env_json("FIELD_ENCRYPTION_KEYS", {})
 # Only while migrating a column that held plaintext before it became encrypted.
 FIELD_ENCRYPTION_ALLOW_PLAINTEXT = env_bool("FIELD_ENCRYPTION_ALLOW_PLAINTEXT", False)
 PRIVACY_HMAC_KEY = env_str("PRIVACY_HMAC_KEY")
+# LGPD art. 19 II: a complete answer to a data subject within 15 days. Confirm with counsel; it is
+# a setting because the regulator may specify otherwise (portability rules are still pending).
 PRIVACY_REQUEST_TARGET_DAYS = env_int("PRIVACY_REQUEST_TARGET_DAYS", 15)
+# ANPD Resolution CD/ANPD 15/2024: notify a relevant-risk incident within 3 business days.
+PRIVACY_INCIDENT_BUSINESS_DAYS = env_int("PRIVACY_INCIDENT_BUSINESS_DAYS", 3)
+PRIVACY_HOLIDAYS = env_list("PRIVACY_HOLIDAYS")  # ISO dates the operator treats as non-business
+# Who the controller is and who the DPO (encarregado) is: published by the transparency endpoint
+# (LGPD art. 41; Resolution CD/ANPD 18/2024 asks that the DPO's identity and contact be public).
+PRIVACY_CONTROLLER_NAME = env_str("PRIVACY_CONTROLLER_NAME")
+PRIVACY_CONTROLLER_ID = env_str("PRIVACY_CONTROLLER_ID")  # CNPJ
+DPO_NAME = env_str("DPO_NAME")
+DPO_EMAIL = env_str("DPO_EMAIL")
+DPO_CONTACT_URL = env_str("DPO_CONTACT_URL")
+PRIVACY_EXPORT_TTL_DAYS = env_int("PRIVACY_EXPORT_TTL_DAYS", 7)
+PRIVACY_PUBLIC_REQUESTS = env_bool("PRIVACY_PUBLIC_REQUESTS", True)
 
 # Action runtime (see apps.actions): calls per credential per minute; 0 disables the limit.
 ACTIONS_RATE_READ_PER_MINUTE = env_int("ACTIONS_RATE_READ_PER_MINUTE", 300)
