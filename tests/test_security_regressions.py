@@ -426,3 +426,25 @@ def test_readiness_hides_dependency_detail_from_anonymous_callers() -> None:
         response = APIClient().get("/api/v1/health/ready/")
     assert response.status_code == 200
     assert response.data == {"status": "ok"}
+
+
+@pytest.mark.django_db
+def test_membership_cannot_be_granted_through_any_admin_door_by_plain_staff() -> None:
+    """Review finding: the Organization admin inline let staff edit role and add members."""
+    from django.contrib.admin.sites import site
+
+    from apps.accounts.models import User
+    from apps.organizations.admin import MembershipInline
+    from apps.organizations.models import Membership, Organization
+
+    staff = User.objects.create_user(email="staff2@example.com", password="x" * 14, is_staff=True)
+    request = RequestFactory().get("/admin/")
+    request.user = staff
+    membership_admin = site._registry[Membership]
+    inline = MembershipInline(Organization, site)
+    assert membership_admin.has_add_permission(request) is False
+    assert inline.has_add_permission(request) is False
+    assert "role" in inline.get_readonly_fields(request)
+    assert {"role", "user", "organization"} <= set(membership_admin.get_readonly_fields(request))
+    staff.is_superuser = True
+    assert membership_admin.has_add_permission(request) is True
