@@ -26,7 +26,7 @@ from apps.common.context import LOG_CONTEXT_VARS
 
 REDACTED = "[REDACTED]"
 
-_SECRET_KEYS = (
+_SECRET_KEYS = (  # noqa: S105 - regex fragment, not a credential
     r"password|passwd|pwd|secret[\w-]*|token|authorization|cookie|api[_-]?key|sessionid|"
     r"csrftoken|access[_-]?token|refresh[_-]?token|client[_-]?secret|private[_-]?key|"
     r"aws_secret_access_key|signature"
@@ -108,7 +108,7 @@ def add_app_context(logger: Any, method: str, event_dict: EventDict) -> EventDic
         if current is not None and name not in event_dict:
             event_dict[name] = current
     try:  # trace correlation when OpenTelemetry is active; absent otherwise
-        from opentelemetry import trace
+        from opentelemetry import trace  # type: ignore[import-not-found,unused-ignore]
 
         span_context = trace.get_current_span().get_span_context()
         if span_context.is_valid:
