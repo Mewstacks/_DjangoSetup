@@ -12,8 +12,8 @@ from apps.flows.sdk import call_action, flow, local_flow
 
 
 class GreetIn(BaseModel):
-    org: str
-    actor: str
+    organization_id: str
+    actor_id: str
     title: str
     secret: str = ""
 
@@ -26,8 +26,8 @@ def _local_greet(payload: dict[str, Any]) -> dict[str, Any]:
     from apps.organizations.models import Organization
 
     ctx = build_context(
-        user=User.objects.get(pk=payload["actor"]),
-        organization=Organization.objects.get(pk=payload["org"]),
+        user=User.objects.get(pk=payload["actor_id"]),
+        organization=Organization.objects.get(pk=payload["organization_id"]),
         channel="flow",
     )
     output, _ = invoke("notes.create", ctx, {"title": payload["title"], "body": payload["secret"]})
@@ -42,8 +42,8 @@ class Greet:
     async def run(self, data: GreetIn) -> dict[str, Any]:
         created = await call_action(
             "notes.create",
-            organization_id=data.org,
-            actor_id=data.actor,
+            organization_id=data.organization_id,
+            actor_id=data.actor_id,
             payload={"title": data.title, "body": data.secret},
         )
         return {"note_id": created["id"]}
@@ -72,8 +72,8 @@ class Approval:
 
 
 class BadIn(BaseModel):
-    org: str
-    actor: str
+    organization_id: str
+    actor_id: str
 
 
 @flow("test.refused", input=BadIn)
@@ -84,8 +84,8 @@ class Refused:
     async def run(self, data: BadIn) -> dict[str, Any]:
         return await call_action(
             "notes.create",
-            organization_id=data.org,
-            actor_id=data.actor,
+            organization_id=data.organization_id,
+            actor_id=data.actor_id,
             payload={"title": ""},
         )
 

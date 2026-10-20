@@ -64,10 +64,29 @@ def _spec(flow: str) -> FlowSpec:
     return spec
 
 
-def _validated(spec: FlowSpec, payload: dict[str, Any] | None) -> dict[str, Any]:
+IDENTITY_KEYS = ("organization_id", "actor_id")
+
+
+def _validated(
+    spec: FlowSpec, payload: dict[str, Any] | None, organization: Any = None, actor: Any = None
+) -> dict[str, Any]:
+    """Validate the input and stamp the caller's identity onto it.
+
+    Who a flow acts for comes from the arguments of ``start()`` - the authenticated caller -
+    and always overwrites any ``organization_id`` / ``actor_id`` found in the payload. A flow
+    that reads identity from its input would otherwise let whoever can start it choose whose
+    tenant and user it runs as.
+    """
+    data = dict(payload or {})
+    for key in IDENTITY_KEYS:
+        data.pop(key, None)
+    if organization is not None:
+        data["organization_id"] = str(organization.pk)
+    if actor is not None and getattr(actor, "pk", None) is not None:
+        data["actor_id"] = str(actor.pk)
     if spec.input_model is None:
-        return dict(payload or {})
-    return spec.input_model.model_validate(payload or {}).model_dump(mode="json")
+        return data
+    return spec.input_model.model_validate(data).model_dump(mode="json")
 
 
 def _new_run(
@@ -111,7 +130,7 @@ class LocalEngine:
                 "Delayed starts need Temporal; schedule a job for the local engine instead.",
                 code="delay_needs_temporal",
             )
-        data = _validated(spec, payload)
+        data = _validated(spec, payload, organization, actor)
         wid = workflow_id or f"{flow}:{uuid.uuid4()}"
         if (
             workflow_id
@@ -187,7 +206,7 @@ class TemporalEngine:
         spec = _spec(flow)
         if spec.workflow is None:
             raise FlowsDisabled(f"Flow {flow!r} has no Temporal workflow.", code="no_workflow")
-        data = _validated(spec, payload)
+        data = _validated(spec, payload, organization, actor)
         wid = workflow_id or f"{flow}:{uuid.uuid4()}"
         run = _new_run(spec, self.name, data, organization, actor, wid)
         return self.launch(run, spec, data, start_delay)

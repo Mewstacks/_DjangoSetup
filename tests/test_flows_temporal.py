@@ -71,7 +71,7 @@ def temporal() -> Iterator[WorkflowEnvironment]:
 def start_greet(user: User, organization: Organization, **extra: str) -> FlowRun:
     return TemporalEngine().start(
         "test.greet",
-        {"org": str(organization.pk), "actor": str(user.pk), "title": "durable", **extra},
+        {"title": "durable", **extra},
         organization=organization,
         actor=user,
     )
@@ -113,8 +113,9 @@ def test_a_refusal_is_not_retried(
 ) -> None:
     run = TemporalEngine().start(
         "test.refused",
-        {"org": str(organization.pk), "actor": str(user.pk)},
+        {},
         organization=organization,
+        actor=user,
     )
     with pytest.raises(WorkflowFailureError) as failure:
         TemporalEngine().result(run, timeout=60)

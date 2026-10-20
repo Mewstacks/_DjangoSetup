@@ -39,7 +39,7 @@ def test_a_portable_flow_runs_inline_and_is_recorded(
 ) -> None:
     run = LocalEngine().start(
         "test.greet",
-        {"org": str(organization.pk), "actor": str(user.pk), "title": "inline", "secret": "s3"},
+        {"title": "inline", "secret": "s3"},
         organization=organization,
         actor=user,
     )
@@ -82,7 +82,7 @@ def test_flow_input_is_validated_against_its_model() -> None:
     from pydantic import ValidationError
 
     with pytest.raises(ValidationError):
-        LocalEngine().start("test.greet", {"org": "x"})
+        LocalEngine().start("test.greet", {"secret": "x"}, organization=None)
 
 
 # --- actions over flows ---------------------------------------------------------------------
@@ -100,7 +100,7 @@ def test_flows_are_started_and_followed_through_actions(
         "/api/v1/actions/flows.start/",
         {
             "flow": "test.greet",
-            "input": {"org": str(organization.pk), "actor": str(user.pk), "title": "via api"},
+            "input": {"title": "via api"},
         },
         format="json",
     )
@@ -126,7 +126,7 @@ def test_runs_of_another_organization_are_invisible(
 ) -> None:
     run = LocalEngine().start(
         "test.greet",
-        {"org": str(organization.pk), "actor": str(user.pk), "title": "mine"},
+        {"title": "mine"},
         organization=organization,
         actor=user,
     )
@@ -255,3 +255,34 @@ def test_registered_flows_have_unique_names_and_consistent_specs() -> None:
     for name, spec in FLOWS.items():
         assert spec.name == name
         assert spec.workflow is not None or spec.local is not None
+
+
+def test_a_caller_cannot_start_a_flow_as_somebody_else(
+    org_client: APIClient, organization: Organization, user: User
+) -> None:
+    """Review finding: identity came from the request body, so any member could run a flow as
+    another tenant's user. It now comes from the authenticated caller, always."""
+    victim = User.objects.create_user("victim@example.com", "a-long-password-1234")
+    other = Organization.objects.create(name="Other", slug="other-tenant")
+    Membership.objects.create(organization=other, user=victim, role=Membership.Role.OWNER)
+    forged = org_client.post(
+        "/api/v1/actions/flows.start/",
+        {
+            "flow": "test.greet",
+            "input": {"title": "pwn", "organization_id": str(other.pk), "actor_id": str(victim.pk)},
+        },
+        format="json",
+    )
+    assert forged.status_code == 422 and "cannot be set" in json.dumps(forged.data)
+    assert not Note.objects.filter(title="pwn").exists()
+
+    # Server code that passes a payload with identity keys is overridden too.
+    run = LocalEngine().start(
+        "test.greet",
+        {"title": "mine", "organization_id": str(other.pk), "actor_id": str(victim.pk)},
+        organization=organization,
+        actor=user,
+    )
+    note = Note.objects.get(title="mine")
+    assert note.organization == organization and note.created_by == user
+    assert json.loads(run.input_json)["organization_id"] == str(organization.pk)

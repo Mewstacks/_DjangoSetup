@@ -10,9 +10,9 @@ from pydantic import BaseModel, Field
 
 from apps.actions.context import ActionContext
 from apps.actions.registry import action
-from apps.common.exceptions import Forbidden, NotFound
+from apps.common.exceptions import Forbidden, Invalid, NotFound
 from apps.flows.declare import FLOWS
-from apps.flows.engine import capabilities, get_engine
+from apps.flows.engine import IDENTITY_KEYS, capabilities, get_engine
 from apps.flows.models import FlowRun
 
 
@@ -118,6 +118,10 @@ def start(ctx: ActionContext, data: StartFlow) -> RunOut:
     spec = FLOWS.get(data.flow)
     if spec is None or not spec.startable:
         raise NotFound("Unknown flow.")
+    reserved = sorted(set(IDENTITY_KEYS) & set(data.input))
+    if reserved:
+        # Identity is the caller's, never an input: see engine._validated.
+        raise Invalid(f"{', '.join(reserved)} cannot be set; the flow runs as you.")
     if not ctx.has_scope(spec.scope):
         raise Forbidden(f"This credential lacks the scope {spec.scope}.", code="missing_scope")
     run = get_engine().start(data.flow, data.input, organization=ctx.organization, actor=ctx.user)
