@@ -40,6 +40,8 @@ HEALTH_DETAIL_PUBLIC = True
 STORAGES = {
     **STORAGES,
     "default": {"BACKEND": "django.core.files.storage.InMemoryStorage"},
+    # No collectstatic run in tests, so no hashed-manifest lookups.
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 DPO_EMAIL = "dpo@example.test"
 PRIVACY_CONTROLLER_NAME = "Test Controller Ltda"

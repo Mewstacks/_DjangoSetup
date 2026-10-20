@@ -26,6 +26,7 @@ DJANGO_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.humanize",  # allauth.usersessions templates
 ]
 THIRD_PARTY_APPS = [
     "allauth",
@@ -85,7 +86,7 @@ ASGI_APPLICATION = "config.asgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [PROJECT_ROOT / "templates"],
+        "DIRS": [PROJECT_ROOT / "src" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [

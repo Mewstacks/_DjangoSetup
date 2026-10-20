@@ -142,3 +142,21 @@ def test_password_reset_is_uniform_for_unknown_addresses(user: User) -> None:
     known = post(APIClient(), "/auth/password/request", {"email": user.email})
     unknown = post(APIClient(), "/auth/password/request", {"email": "ghost@example.com"})
     assert known.status_code == unknown.status_code
+
+
+@pytest.mark.parametrize("path", ["/accounts/login/", "/accounts/password/reset/"])
+def test_entrance_pages_render_with_the_project_layout(path: str) -> None:
+    response = APIClient().get(path)
+    assert response.status_code == 200
+    assert b"accounts/auth.css" in response.content and b'class="auth-card"' in response.content
+
+
+@pytest.mark.parametrize(
+    "path",
+    ["/accounts/2fa/", "/accounts/sessions/", "/accounts/email/", "/accounts/password/change/"],
+)
+def test_account_pages_render_for_a_signed_in_user(user: User, path: str) -> None:
+    client = APIClient()
+    client.force_login(user)
+    response = client.get(path)
+    assert response.status_code == 200, path

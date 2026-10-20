@@ -8,12 +8,14 @@ from oauth2_provider.scopes import BaseScopes
 
 from apps.actions.registry import known_scopes
 
+LEVELS = {"read": "Ler", "write": "Escrever", "admin": "Administrar"}
+
 
 def _descriptions() -> dict[str, str]:
     described: dict[str, str] = {}
     for scope in sorted(known_scopes()):
         domain, _, level = scope.partition(":")
-        described[scope] = f"{level.capitalize()} {domain}"
+        described[scope] = f"{LEVELS.get(level, level.capitalize())} {domain}"
     return described
 
 

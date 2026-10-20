@@ -1,0 +1,30 @@
+{% extends "allauth/layouts/base.html" %}
+{% block head_title %}Autorizar{% endblock %}
+{% block nav %}{% endblock nav %}
+{% block content %}
+  {% if not error %}
+    <form id="authorizationForm" method="post">
+      <h1>{{ application.name }}</h1>
+      {% csrf_token %}
+      {% for field in form %}{% if field.is_hidden %}{{ field }}{% endif %}{% endfor %}
+      <dl class="meta">
+        <dt>Destino</dt>
+        <dd>{{ redirect_uri }}</dd>
+      </dl>
+      <h2>Acesso</h2>
+      <ul class="scopes">
+        {% for scope in scopes_descriptions %}<li>{{ scope }}</li>{% endfor %}
+      </ul>
+      {{ form.errors }}
+      {{ form.non_field_errors }}
+      <div class="actions">
+        <input type="submit" class="btn" value="Cancelar">
+        <input type="submit" class="btn btn--primary" name="allow" value="Autorizar">
+      </div>
+    </form>
+  {% else %}
+    <h1>Erro</h1>
+    <p>{{ error.error }}</p>
+    <p>{{ error.description }}</p>
+  {% endif %}
+{% endblock %}

@@ -1,0 +1,403 @@
+/*
+ * Sign-in, MFA, account and OAuth consent pages.
+ * Reference patterns: github.com/login and linear.app/login (one narrow centred column, labels
+ * above fields, a single primary action, secondary actions as links).
+ * Every colour is a token; changing a token restyles all of it. Contrast (WCAG 2.2 AA):
+ *   light  text 17.8  muted 8.0  link 6.7  button 6.7  danger 5.8  field border 4.2
+ *   dark   text 14.2  muted 7.4  link 8.3  button 5.2  danger 6.8  field border 5.0
+ */
+:root {
+  color-scheme: light dark;
+
+  --bg: #f4f5f7;
+  --surface: #ffffff;
+  --border: #d3d8e0;
+  --border-field: #727c8c;
+  --text: #14181f;
+  --text-muted: #475162;
+  --primary: #1d4ed8;
+  --link: #1d4ed8;
+  --link-hover: #1e40af;
+  --primary-hover: #1e40af;
+  --primary-contrast: #ffffff;
+  --danger: #b42318;
+  --danger-bg: #fdecea;
+  --focus: #1d4ed8;
+
+  --font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --fs-sm: 0.875rem;
+  --fs-base: 1rem;
+  --fs-lg: 1.25rem;
+  --fs-xl: 1.5625rem;
+  --lh-tight: 1.25;
+  --lh-body: 1.5;
+
+  --sp-1: 0.25rem;
+  --sp-2: 0.5rem;
+  --sp-3: 0.75rem;
+  --sp-4: 1rem;
+  --sp-5: 1.25rem;
+  --sp-6: 1.5rem;
+  --sp-8: 2rem;
+  --sp-12: 3rem;
+
+  --radius: 0.5rem;
+  --shadow: 0 1px 2px rgb(20 24 31 / 6%), 0 8px 24px rgb(20 24 31 / 8%);
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+  --dur: 150ms;
+  --target: 2.75rem;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0d1117;
+    --surface: #151b23;
+    --border: #2b3441;
+    --border-field: #7f8a9b;
+    --text: #e6e9ee;
+    --text-muted: #a0aab8;
+    --primary: #2563eb;
+    --link: #8ab4ff;
+    --link-hover: #b3cdff;
+    --primary-hover: #3b73f0;
+    --primary-contrast: #ffffff;
+    --danger: #ff8a80;
+    --danger-bg: #3a1b1a;
+    --focus: #8ab4ff;
+    --shadow: 0 1px 2px rgb(0 0 0 / 40%), 0 8px 24px rgb(0 0 0 / 40%);
+  }
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: var(--fs-base) / var(--lh-body) var(--font);
+  -webkit-text-size-adjust: 100%;
+}
+
+.auth {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: var(--sp-6) var(--sp-4);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 26rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: var(--sp-8) var(--sp-6);
+  overflow-wrap: anywhere;
+}
+
+/* Pages with a table (sessions) need the width. */
+.auth-card:has(table) {
+  max-width: 44rem;
+}
+
+h1 {
+  margin: 0 0 var(--sp-6);
+  font-size: var(--fs-xl);
+  line-height: var(--lh-tight);
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+h2 {
+  margin: var(--sp-6) 0 var(--sp-3);
+  font-size: var(--fs-lg);
+  line-height: var(--lh-tight);
+  font-weight: 600;
+}
+
+p {
+  margin: 0 0 var(--sp-4);
+}
+
+a {
+  color: var(--link);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--link-hover);
+}
+
+/* Fields */
+.field {
+  margin: 0 0 var(--sp-4);
+}
+
+label {
+  display: block;
+  margin-bottom: var(--sp-1);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+input:not([type="checkbox"], [type="radio"], [type="hidden"]) {
+  width: 100%;
+  min-height: var(--target);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  transition: border-color var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+}
+
+input:not([type="checkbox"], [type="radio"], [type="hidden"]):hover {
+  border-color: var(--text);
+}
+
+input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.field-check {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  min-height: var(--target);
+}
+
+.field-check label {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: 400;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  inline-size: 1.25rem;
+  block-size: 1.25rem;
+  margin: 0;
+  accent-color: var(--primary);
+}
+
+.help {
+  margin-top: var(--sp-2);
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.auth-card ul {
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  list-style: none;
+}
+
+.auth-card .help ul {
+  margin: 0;
+  padding-inline-start: var(--sp-5);
+  list-style: disc;
+}
+
+.help a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
+input::placeholder {
+  color: transparent;
+}
+
+.errorlist {
+  margin: 0 0 var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  list-style: none;
+  border-radius: var(--radius);
+  background: var(--danger-bg);
+  color: var(--danger);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.field--invalid input:not([type="checkbox"], [type="radio"], [type="hidden"]) {
+  border-color: var(--danger);
+}
+
+/* Buttons: one primary per page; the rest read as secondary. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--target);
+  padding: var(--sp-2) var(--sp-5);
+  border: 1px solid var(--border-field);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.btn,
+.btn:hover {
+  color: var(--text);
+}
+
+.btn:hover {
+  border-color: var(--text);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn.btn--primary {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: var(--primary-contrast);
+}
+
+.btn.btn--primary:hover {
+  border-color: var(--primary-hover);
+  background: var(--primary-hover);
+  color: var(--primary-contrast);
+}
+
+.btn--danger {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.btn:disabled,
+.btn[aria-disabled="true"] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+form .btn--primary,
+form > .btn {
+  width: 100%;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-3);
+  margin-top: var(--sp-6);
+}
+
+.actions .btn {
+  flex: 1 1 8rem;
+  width: auto;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* Lists and tables on account pages */
+.scopes {
+  margin: 0 0 var(--sp-4);
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.scopes li {
+  padding: var(--sp-3) var(--sp-4);
+}
+
+.scopes li + li {
+  border-top: 1px solid var(--border);
+}
+
+.meta {
+  margin: 0 0 var(--sp-2);
+}
+
+.meta dt {
+  font-size: var(--fs-sm);
+  font-weight: 500;
+}
+
+.meta dd {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
+}
+
+.table-wrap {
+  overflow-x: auto;
+}
+
+table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+  overflow-wrap: normal;
+}
+
+th,
+td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+}
+
+.messages {
+  margin: 0 0 var(--sp-4);
+  padding: var(--sp-3) var(--sp-4);
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: var(--fs-sm);
+}
+
+.auth-nav {
+  margin-top: var(--sp-6);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2) var(--sp-4);
+  font-size: var(--fs-sm);
+}
+
+.auth-nav a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
+  }
+}
+
+@media (max-width: 30rem) {
+  .auth {
+    place-items: start center;
+    padding-block: var(--sp-4);
+  }
+
+  .auth-card {
+    padding: var(--sp-6) var(--sp-4);
+  }
+
+  .auth-nav a {
+    min-height: var(--target);
+  }
+}

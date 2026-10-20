@@ -1,0 +1,39 @@
+{% load static i18n %}<!DOCTYPE html>
+<html lang="{{ LANGUAGE_CODE|default:'pt-br' }}">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="color-scheme" content="light dark">
+    <meta name="robots" content="noindex">
+    <title>{% block head_title %}{% endblock head_title %}</title>
+    <link rel="stylesheet" href="{% static 'accounts/auth.css' %}">
+    {% block extra_head %}{% endblock extra_head %}
+  </head>
+  <body>
+    <main class="auth">
+      <div class="auth-card">
+        {% if messages %}
+          <ul class="messages" role="status">
+            {% for message in messages %}<li>{{ message }}</li>{% endfor %}
+          </ul>
+        {% endif %}
+        {% block content %}{% endblock content %}
+        {% block nav %}{% if user.is_authenticated %}
+          <nav class="auth-nav" aria-label="Conta">
+            {% url 'account_email' as email_url_ %}
+            {% if email_url_ %}<a href="{{ email_url_ }}">E-mail</a>{% endif %}
+            {% url 'account_change_password' as password_url_ %}
+            {% if password_url_ %}<a href="{{ password_url_ }}">Senha</a>{% endif %}
+            {% url 'mfa_index' as mfa_url_ %}
+            {% if mfa_url_ %}<a href="{{ mfa_url_ }}">MFA</a>{% endif %}
+            {% url 'usersessions_list' as sessions_url_ %}
+            {% if sessions_url_ %}<a href="{{ sessions_url_ }}">Sessões</a>{% endif %}
+            {% url 'account_logout' as logout_url_ %}
+            {% if logout_url_ %}<a href="{{ logout_url_ }}">Sair</a>{% endif %}
+          </nav>
+        {% endif %}{% endblock nav %}
+      </div>
+    </main>
+    {% block extra_body %}{% endblock extra_body %}
+  </body>
+</html>
