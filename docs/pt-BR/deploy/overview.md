@@ -23,7 +23,7 @@ privilégios e funciona com sistema de arquivos raiz somente leitura (`/tmp` gra
 |---|---|
 | Host único | `deploy/compose/compose.prod.yaml`: Caddy (TLS automático), migrate, web, scheduler, Postgres, Redis, opcionais `--profile temporal` (servidor, UI, job de schema) e `--profile backup` |
 | Kubernetes | `deploy/k8s/base` + `overlays/production` (kustomize): pod security restrita, probes, HPA, PDB, NetworkPolicy default-deny com saída só para a internet pública, CronJob de backup; rode `migrate-job.yaml` antes de cada rollout |
-| PaaS (estilo Heroku, Dokku, Coolify, Railway, Render) | `Procfile` (release/web/worker/scheduler); forneça Postgres e opcionalmente Redis |
+| Qualquer PaaS com Procfile | `Procfile` (release/web/worker/scheduler); forneça Postgres e opcionalmente Redis |
 | Cloud Run, ECS, Nomad, outro PaaS | Rode a mesma imagem; mapeie `web` para o serviço e `migrate` para o passo de release/pré-deploy |
 | Bare metal / VM | Instale o conjunto de wheels de `requirements.txt`, rode o gunicorn sob systemd atrás de nginx/Caddy; `scheduler` como segunda unidade |
 
