@@ -40,16 +40,51 @@ O `bootstrap` grava o `.env` com segredos novos, migra, semeia as finalidades da
 administrador verificado, organização e chave de API (exibida uma vez). Para outro nome:
 `python scripts/init_project.py --name meu-produto`.
 
-## Construir com IA
+## Programar com IA (MCP)
 
-`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.github/copilot-instructions.md` e `llms.txt` são gerados
-de um só livro de regras e checados no CI. O servidor MCP de desenvolvimento
-(`python -m devtools.mcp`, já em `.mcp.json`) deixa Claude, GPT ou qualquer agente descrever o
-projeto, gerar um recurso (`manage.py scaffold`), checar convenções e LGPD, e rodar o gate. Veja o
-[guia de IA](docs/pt-BR/guides/ai-development.md).
+São dois servidores MCP, com trabalhos diferentes:
 
-Depois: [início rápido](docs/pt-BR/quickstart.md), [arquitetura](docs/pt-BR/architecture.md),
-[adicionar uma ação](docs/pt-BR/guides/add-an-action.md).
+| | Para quem | Faz o quê | Como sobe |
+|---|---|---|---|
+| `saas-devtools` | Quem **constrói** o produto (Claude Code, Cursor, Codex) | Ensina o projeto à IA: regras, framework, middleware, LGPD; gera recursos; roda o gate | `python -m devtools.mcp` (stdio, só local) |
+| `/mcp` | Quem **usa** o produto em execução (agentes de clientes) | Cada ação vira uma ferramenta, com escopo, papel e auditoria | `MCP_ENABLED=true`, dentro do servidor |
+
+### 1. Conectar o agente de desenvolvimento
+
+O `.mcp.json` da raiz já registra o `saas-devtools`.
+
+- **Claude Code:** abra o projeto na raiz e aprove o servidor quando perguntar (ou
+  `claude mcp add saas-devtools -- uv run python -m devtools.mcp`). `/mcp` mostra o estado.
+- **Cursor, Codex e outros:** registre o mesmo comando (`uv run python -m devtools.mcp`, com
+  `DJANGO_SETTINGS_MODULE=config.settings.local`) no arquivo de MCP do cliente.
+
+O `CLAUDE.md`, o `AGENTS.md` e `.cursor/rules` já mandam a IA seguir as regras do projeto.
+
+### 2. Pedir a funcionalidade
+
+> Adicione o recurso "faturas" com título, valor e vencimento. Use o MCP do projeto.
+
+A IA segue este caminho (as ferramentas são do `saas-devtools`):
+
+1. `describe_project` e `list_conventions`: entende apps, regras e definição de pronto.
+2. `framework_guide` e `middleware_stack`: consulta como Django, DRF, Temporal e o middleware funcionam aqui, quando precisa.
+3. `scaffold_resource` (primeiro `dry_run`): gera model, service, ações, undo, eventos, entrada de LGPD e testes.
+4. `lgpd_check`: decide categorias, finalidade e eliminação de cada campo pessoal.
+5. `check_conventions` e `run_gate`: corrige até ficar verde. Nada está pronto com o gate vermelho.
+
+Você revisa o diff. Sem o MCP funciona igual: `python manage.py scaffold resource ...` e
+`python scripts/verify.py --fast`.
+
+### 3. Expor o produto a agentes de clientes
+
+```bash
+MCP_ENABLED=true OAUTH_ENABLED=true python manage.py runserver
+python manage.py mcp_config --url http://localhost:8000 --org acme
+```
+
+`mcp_config` imprime os trechos prontos para Claude Code, Cursor e um teste com curl. A chave de API
+do `bootstrap` autentica; os escopos da chave limitam as ferramentas. Detalhes no
+[guia do MCP](docs/pt-BR/guides/mcp.md) e no [guia de IA](docs/pt-BR/guides/ai-development.md).
 
 ## Qualidade
 

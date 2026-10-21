@@ -40,16 +40,53 @@ python manage.py runserver
 verified administrator, an organization and an API key (shown once). To rename the project:
 `python scripts/init_project.py --name my-product`.
 
-## Build with AI
+## Program with AI (MCP)
 
-`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.github/copilot-instructions.md` and `llms.txt` are
-generated from one rulebook and drift-checked in CI. The development MCP server
-(`python -m devtools.mcp`, already in `.mcp.json`) lets Claude, GPT or any agent describe the
-project, generate a resource (`manage.py scaffold`), check conventions and LGPD, and run the gate.
-See the [AI guide](docs/en/guides/ai-development.md).
+There are two MCP servers with different jobs:
 
-Then: [quickstart](docs/en/quickstart.md), [architecture](docs/en/architecture.md),
-[add an action](docs/en/guides/add-an-action.md).
+| | For | Does | Starts with |
+|---|---|---|---|
+| `saas-devtools` | Whoever **builds** the product (Claude Code, Cursor, Codex) | Teaches the project to the AI: rules, framework, middleware, LGPD; generates resources; runs the gate | `python -m devtools.mcp` (stdio, local only) |
+| `/mcp` | Whoever **uses** the running product (customers' agents) | Every action becomes a tool, with scope, role and audit | `MCP_ENABLED=true`, inside the server |
+
+### 1. Connect the development agent
+
+The root `.mcp.json` already registers `saas-devtools`.
+
+- **Claude Code:** open the project at its root and approve the server when asked (or
+  `claude mcp add saas-devtools -- uv run python -m devtools.mcp`). `/mcp` shows its state.
+- **Cursor, Codex and others:** register the same command (`uv run python -m devtools.mcp`, with
+  `DJANGO_SETTINGS_MODULE=config.settings.local`) in the client's MCP file.
+
+`CLAUDE.md`, `AGENTS.md` and `.cursor/rules` already tell the AI to follow the project's rules.
+
+### 2. Ask for the feature
+
+> Add an "invoices" resource with title, amount and due date. Use the project's MCP.
+
+The AI follows this path (the tools belong to `saas-devtools`):
+
+1. `describe_project` and `list_conventions`: learns the apps, the rules and the definition of done.
+2. `framework_guide` and `middleware_stack`: looks up how Django, DRF, Temporal and the middleware
+   work here, when it needs to.
+3. `scaffold_resource` (`dry_run` first): generates model, service, actions, undo, events, LGPD entry
+   and tests.
+4. `lgpd_check`: decides category, purpose and erasure for every personal field.
+5. `check_conventions` and `run_gate`: fixes until green. Nothing is done while the gate is red.
+
+You review the diff. Without MCP it works the same way: `python manage.py scaffold resource ...` and
+`python scripts/verify.py --fast`.
+
+### 3. Expose the product to customers' agents
+
+```bash
+MCP_ENABLED=true OAUTH_ENABLED=true python manage.py runserver
+python manage.py mcp_config --url http://localhost:8000 --org acme
+```
+
+`mcp_config` prints ready-made snippets for Claude Code, Cursor and a curl check. The API key from
+`bootstrap` authenticates; its scopes limit the tools. Details in the
+[MCP guide](docs/en/guides/mcp.md) and the [AI guide](docs/en/guides/ai-development.md).
 
 ## Quality
 
