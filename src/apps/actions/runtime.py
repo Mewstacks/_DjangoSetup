@@ -43,6 +43,7 @@ from apps.common.exceptions import (
     NotFound,
     RateLimited,
 )
+from apps.organizations.permissions import MFA_REQUIRED_MESSAGE, privileged_mfa_missing
 
 logger = structlog.get_logger("apps.actions")
 
@@ -90,6 +91,10 @@ def _denial_may_be_audited(ctx: ActionContext) -> bool:
 def _check_access(ctx: ActionContext, spec: ActionSpec) -> None:
     if ctx.channel not in spec.channels:
         raise NotFound("Unknown action.")  # not Forbidden: do not confirm it exists
+    # Same rule as HasOrganizationContext, for the doors that do not use it. Read live, so an
+    # authenticator removed after a key was minted stops that key at once.
+    if ctx.channel in {"api", "mcp"} and privileged_mfa_missing(ctx.user, ctx.role):
+        raise Forbidden(MFA_REQUIRED_MESSAGE, code="mfa_required")
     if not ctx.has_scope(spec.scope):
         raise Forbidden(f"This credential lacks the scope {spec.scope}.", code="missing_scope")
     if spec.roles is not None:

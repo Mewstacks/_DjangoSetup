@@ -110,6 +110,27 @@ def test_privileged_roles_need_a_second_factor_when_the_switch_is_on() -> None:
         assert permission.has_permission(request, view) is True
 
 
+@pytest.mark.django_db
+def test_actions_enforce_the_privileged_mfa_rule_too(org_client: APIClient) -> None:
+    """The REST action door does not use HasOrganizationContext; the runtime must apply the rule."""
+    with (
+        override_settings(ORG_PRIVILEGED_MFA_REQUIRED=True),
+        mock.patch("apps.accounts.middleware.has_mfa", return_value=False),
+    ):
+        response = org_client.post(
+            "/api/v1/actions/notes.create/", {"title": "t", "body": "b"}, format="json"
+        )
+    assert response.status_code == 403
+    with (
+        override_settings(ORG_PRIVILEGED_MFA_REQUIRED=True),
+        mock.patch("apps.accounts.middleware.has_mfa", return_value=True),
+    ):
+        response = org_client.post(
+            "/api/v1/actions/notes.create/", {"title": "t", "body": "b"}, format="json"
+        )
+    assert response.status_code == 200
+
+
 # --- API keys: a stale session cannot mint a credential that outlives it ------------------
 
 

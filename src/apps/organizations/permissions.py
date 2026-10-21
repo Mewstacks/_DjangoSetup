@@ -12,6 +12,22 @@ from apps.organizations.models import Membership
 PRIVILEGED_ROLES = frozenset({Membership.Role.OWNER, Membership.Role.ADMIN})
 
 
+MFA_REQUIRED_MESSAGE = "Owners and administrators must enable two-factor authentication."
+
+
+def privileged_mfa_missing(user: object, role: object) -> bool:
+    """True when ``role`` needs a second factor and ``user`` has none (ORG_PRIVILEGED_MFA_REQUIRED).
+
+    One definition for every door: the DRF permission below and ``actions.runtime`` (REST actions
+    and MCP), so a bearer credential cannot reach what the session pages refuse.
+    """
+    if not settings.ORG_PRIVILEGED_MFA_REQUIRED or role not in PRIVILEGED_ROLES:
+        return False
+    from apps.accounts.middleware import has_mfa
+
+    return not has_mfa(user)
+
+
 class HasOrganizationContext(BasePermission):
     message = "Select an organization with X-Organization-ID."
 
@@ -19,14 +35,9 @@ class HasOrganizationContext(BasePermission):
         membership = getattr(request, "organization_membership", None)
         if membership is None:
             return False
-        if settings.ORG_PRIVILEGED_MFA_REQUIRED and membership.role in PRIVILEGED_ROLES:
-            # Bearer credentials were minted by a session that had to pass this check, so only
-            # sessions reach it. The message says why, instead of a bare 403.
-            from apps.accounts.middleware import has_mfa
-
-            if not has_mfa(request.user):
-                self.message = "Owners and administrators must enable two-factor authentication."
-                return False
+        if privileged_mfa_missing(getattr(request, "user", None), membership.role):
+            self.message = MFA_REQUIRED_MESSAGE
+            return False
         return True
 
 
