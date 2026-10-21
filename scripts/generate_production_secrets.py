@@ -29,6 +29,7 @@ def generate_secrets(
         "FIELD_ENCRYPTION_ACTIVE_KEY_ID": key_id,
         "FIELD_ENCRYPTION_KEYS": json.dumps(ring, separators=(",", ":")),
         "PRIVACY_HMAC_KEY": secrets.token_urlsafe(48),
+        "AUDIT_HMAC_KEY": secrets.token_urlsafe(48),
     }
 
 
@@ -44,7 +45,7 @@ def main() -> None:
             file=sys.stderr,
         )
     for name, value in generate_secrets(args.key_id, ring).items():
-        if ring is not None and name in {"DJANGO_SECRET_KEY", "PRIVACY_HMAC_KEY"}:
+        if ring is not None and name in {"DJANGO_SECRET_KEY", "PRIVACY_HMAC_KEY", "AUDIT_HMAC_KEY"}:
             continue  # rotating the field key must not regenerate unrelated secrets
         print(f"{name}={value}")
 

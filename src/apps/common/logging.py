@@ -34,6 +34,9 @@ _SENSITIVE_NAMES = (
 
 # Order matters: longer / more specific shapes first so a CNPJ is not half-eaten as a CPF.
 _PATTERNS: tuple[tuple[re.Pattern[str], str], ...] = (
+    # A bearer secret that travels in the URL path (the LGPD export link): access logs, Sentry
+    # breadcrumbs and traces would otherwise keep a working download link for days.
+    (re.compile(r"(?<=/privacy/exports/)[^/\s?\"']+"), "[REDACTED_LINK]"),
     (re.compile(r"\beyJ[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]{5,}\.[A-Za-z0-9_-]*"), "[REDACTED_JWT]"),
     (re.compile(r"\b[a-z]{2,8}_[0-9a-f]{16}_[0-9a-f]{64}\b"), "[REDACTED_KEY]"),
     (re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", re.IGNORECASE), "Bearer [REDACTED]"),
@@ -134,6 +137,15 @@ def _context_processors() -> list[Processor]:
     ]
 
 
+def _render_unknown(value: object) -> str:
+    """JSON ``default=``: an object with no JSON form is rendered with ``str`` and then redacted.
+
+    ``User.__str__`` is the e-mail address; without this an object passed as a log value would
+    reach the output after the key/value redaction had already run.
+    """
+    return redact(str(value))
+
+
 def build_formatter() -> logging.Formatter:
     """``LOGGING['formatters'][...]['()']`` target: JSON for stdlib and structlog records alike.
 
@@ -147,7 +159,7 @@ def build_formatter() -> logging.Formatter:
             structlog.processors.format_exc_info,
             redact_event,
             structlog.processors.EventRenamer("message"),
-            structlog.processors.JSONRenderer(ensure_ascii=False, default=str),
+            structlog.processors.JSONRenderer(ensure_ascii=False, default=_render_unknown),
         ],
     )
 

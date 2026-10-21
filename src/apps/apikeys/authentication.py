@@ -16,7 +16,8 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.request import Request
 
-from apps.apikeys.models import ApiKey, key_prefix
+from apps.apikeys.models import BLIND_INDEX_NAMESPACE, ApiKey, key_prefix
+from apps.common.encryption import blind_index_candidates
 from apps.common.network import client_ip
 from apps.organizations.models import Membership
 
@@ -27,6 +28,9 @@ LAST_USED_RESOLUTION_SECONDS = 60
 # Guessing the secret behind a known public id: a few tries a minute is plenty for a person
 # who mistyped a header and nothing for a script.
 FAILED_PER_MINUTE = 20
+# Any wrong key from one address counts here too, so spraying many key ids from one place is
+# stopped even though each id stays under its own limit.
+FAILED_PER_MINUTE_PER_IP = 60
 
 
 @dataclass(frozen=True, slots=True)
@@ -42,26 +46,46 @@ def parse_key(raw: str) -> tuple[str, str] | None:
     return pieces[1], pieces[2]
 
 
-def _failure_key(public_id: str) -> str:
-    return f"apikey:auth-fail:{hashlib.sha256(public_id.encode()).hexdigest()[:24]}"
+def _failure_key(public_id: str, ip: str | None) -> str:
+    # Per (key id, address): a stranger who knows a public id can burn only their own budget,
+    # not the owner's. The secret is 256 random bits, so this limiter is noise control, not
+    # the defence against guessing.
+    digest = hashlib.sha256(f"{public_id}|{ip or ''}".encode()).hexdigest()[:24]
+    return f"apikey:auth-fail:{digest}"
 
 
-def _failed_too_often(public_id: str) -> bool:
-    key = _failure_key(public_id)
+def _ip_failure_key(ip: str | None) -> str:
+    return f"apikey:auth-fail-ip:{hashlib.sha256((ip or '').encode()).hexdigest()[:24]}"
+
+
+def _failed_too_often(public_id: str, ip: str | None) -> bool:
     try:
-        cache.add(key, 0, 60)
-        return int(cache.get(key, 0)) >= FAILED_PER_MINUTE
+        cache.add(_failure_key(public_id, ip), 0, 60)
+        cache.add(_ip_failure_key(ip), 0, 60)
+        return (
+            int(cache.get(_failure_key(public_id, ip), 0)) >= FAILED_PER_MINUTE
+            or int(cache.get(_ip_failure_key(ip), 0)) >= FAILED_PER_MINUTE_PER_IP
+        )
     except Exception:
         return False
 
 
-def _count_failure(public_id: str) -> None:
-    key = _failure_key(public_id)
+def _count_failure(public_id: str, ip: str | None) -> None:
     try:
-        cache.add(key, 0, 60)
-        cache.incr(key)
+        for key in (_failure_key(public_id, ip), _ip_failure_key(ip)):
+            cache.add(key, 0, 60)
+            cache.incr(key)
     except Exception:
         return
+
+
+def _matching_index(secret: str, stored: str) -> str | None:
+    """The candidate index equal to ``stored`` (current key first), compared in constant time."""
+    found = None
+    for candidate in blind_index_candidates(secret, namespace=BLIND_INDEX_NAMESPACE):
+        if hmac.compare_digest(candidate, stored):
+            found = candidate
+    return found
 
 
 def ip_allowed(key: ApiKey, ip: str | None) -> bool:
@@ -89,16 +113,20 @@ def authenticate_key(raw: str, *, ip: str | None = None) -> KeyAuth | None:
     if parsed is None:
         return None
     public_id, secret = parsed
-    if _failed_too_often(public_id):
+    if _failed_too_often(public_id, ip):
         return None
     key = (
         ApiKey.objects.select_related("user", "organization")
         .filter(public_id=public_id, revoked_at__isnull=True)
         .first()
     )
-    if key is None or not hmac.compare_digest(ApiKey.index_for(secret), key.secret_index):
-        _count_failure(public_id)
+    matched = None if key is None else _matching_index(secret, key.secret_index)
+    if key is None or matched is None:
+        _count_failure(public_id, ip)
         return None
+    if matched != ApiKey.index_for(secret):
+        # Found under a key that is being rotated out: move it to the current one.
+        ApiKey.objects.filter(pk=key.pk).update(secret_index=ApiKey.index_for(secret))
     if not key.is_active or not key.user.is_active or not key.organization.is_active:
         return None
     if not ip_allowed(key, ip):

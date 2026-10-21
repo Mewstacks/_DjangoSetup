@@ -33,7 +33,9 @@ BASELINE_PURPOSES: list[dict[str, Any]] = [
         "show who did what (including access-application logs).",
         "lawful_basis": "legal_obligation",
         "data_categories": ["technical", "identifier"],
-        "retention_days": 180,
+        # Matches AUDIT_RETENTION_DAYS (the prune job). Marco Civil art. 15 asks for six months
+        # of access-application logs; a year leaves room to investigate. Decide with your DPO.
+        "retention_days": 365,
     },
     {
         "code": "compliance-records",

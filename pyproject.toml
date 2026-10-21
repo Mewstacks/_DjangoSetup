@@ -65,7 +65,10 @@ where = ["src"]
 DJANGO_SETTINGS_MODULE = "config.settings.test"
 pythonpath = ["src"]
 testpaths = ["tests"]
-markers = ["temporal: needs the Temporal test server (downloaded on first use)"]
+markers = [
+  "temporal: needs the Temporal test server (downloaded on first use)",
+  "slow_scaffold: copies the project and runs the generated resource end to end (about 20 s)",
+]
 addopts = "--strict-markers --strict-config -ra"
 
 [tool.coverage.run]
@@ -103,6 +106,8 @@ ignore = [
 "tests/**/*.py" = ["S105", "S106", "S107", "S311", "E501"]
 "src/**/migrations/*.py" = ["E501", "RUF012"]
 "src/config/settings/*.py" = ["F403", "F405", "S105"]
+# Prose rules and code templates: wrapping them would only make them harder to read.
+"src/devtools/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

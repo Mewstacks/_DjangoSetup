@@ -1,15 +1,27 @@
 from __future__ import annotations
 
+import contextlib
+import json
 import time
+from urllib.parse import urlparse
 
+import structlog
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connection
+from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_POST
+from django.views.defaults import page_not_found
+from django.views.defaults import server_error as default_server_error
 from drf_spectacular.utils import extend_schema, inline_serializer
 from rest_framework import serializers, status
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+from apps.common.exceptions import error_body
+from apps.common.network import client_ip_bucket
 
 _readiness_result: tuple[float, dict[str, str]] | None = None
 
@@ -112,3 +124,72 @@ class ReadinessView(APIView):
             body,
             status=status.HTTP_200_OK if healthy else status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+
+
+# --- error pages ------------------------------------------------------------------------
+
+
+def not_found(request: HttpRequest, exception: Exception | None = None) -> HttpResponse:
+    """JSON for the API, Django's plain page for everything else."""
+    if request.path.startswith("/api/"):
+        return JsonResponse(error_body(404, "not_found", "Not found."), status=404)
+    return page_not_found(request, exception or Http404())
+
+
+def server_error(request: HttpRequest) -> HttpResponse:
+    """A 500 carries no detail; the request id header (set by the middleware) is the handle."""
+    if request.path.startswith("/api/"):
+        return JsonResponse(error_body(500, "server_error", "Something went wrong."), status=500)
+    return default_server_error(request)
+
+
+# --- CSP violation sink -----------------------------------------------------------------
+
+CSP_REPORT_MAX_BYTES = 8 * 1024
+CSP_REPORT_PER_MINUTE = 30
+csp_logger = structlog.get_logger("apps.csp")
+
+
+def _origin_only(value: object) -> str:
+    """Scheme and host of a reported URL: paths and queries carry tokens and identifiers."""
+    parsed = urlparse(str(value or ""))
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"[:200]
+    return str(value or "")[:40]  # "inline", "eval", "data", ...
+
+
+@csrf_exempt
+@require_POST
+def csp_report(request: HttpRequest) -> HttpResponse:
+    """Log a Content-Security-Policy violation. Always answers 204: a report is not a request
+    the browser should retry, and the endpoint must reveal nothing."""
+    bucket = client_ip_bucket(request) or ""
+    key = f"csp:report:{bucket}:{int(time.time() // 60)}"
+    over = False
+    with contextlib.suppress(Exception):  # a cache outage must not turn a report into an error
+        cache.add(key, 0, 120)
+        over = int(cache.incr(key)) > CSP_REPORT_PER_MINUTE
+    if over:
+        return HttpResponse(status=204)
+    if int(request.headers.get("Content-Length") or 0) > CSP_REPORT_MAX_BYTES:
+        return HttpResponse(status=204)
+    try:
+        payload = json.loads(request.body[:CSP_REPORT_MAX_BYTES] or b"{}")
+    except ValueError:
+        return HttpResponse(status=204)
+    reports = payload if isinstance(payload, list) else [payload]
+    for item in reports[:5]:
+        # Legacy `report-uri` wraps the body in {"csp-report": {...}}; the Reporting API sends
+        # a list of {"type": "csp-violation", "body": {...}} with camelCase keys.
+        body = item.get("csp-report") or item.get("body") or {} if isinstance(item, dict) else {}
+        if not isinstance(body, dict):
+            continue
+        csp_logger.warning(
+            "csp_violation",
+            directive=str(body.get("violated-directive") or body.get("effectiveDirective") or "")[
+                :60
+            ],
+            blocked=_origin_only(body.get("blocked-uri") or body.get("blockedURL")),
+            document=_origin_only(body.get("document-uri") or body.get("documentURL")),
+        )
+    return HttpResponse(status=204)

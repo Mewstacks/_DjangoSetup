@@ -22,9 +22,12 @@ from typing import Any
 from django.conf import settings
 from django.core.cache import cache
 
-from apps.common.network import client_ip_bucket
+from apps.common.network import client_ip, client_ip_bucket
 
 client_ip_var: ContextVar[str | None] = ContextVar("mcp_client_ip", default=None)
+# The validated address itself. ``client_ip_var`` holds the throttling bucket (an IPv6 /64), which
+# is the wrong thing to compare against a key's IP allow-list.
+real_ip_var: ContextVar[str | None] = ContextVar("mcp_real_ip", default=None)
 org_slug_var: ContextVar[str | None] = ContextVar("mcp_org_slug", default=None)
 
 
@@ -46,6 +49,10 @@ class _CaseInsensitive(dict[str, str]):
 
 def client_address(scope: Mapping[str, Any]) -> str | None:
     return client_ip_bucket(ScopeRequest(scope))  # type: ignore[arg-type]
+
+
+def real_address(scope: Mapping[str, Any]) -> str | None:
+    return client_ip(ScopeRequest(scope))  # type: ignore[arg-type]
 
 
 def over_budget(address: str | None) -> bool:

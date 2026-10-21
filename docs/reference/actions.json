@@ -1,6 +1,7 @@
 {
   "actions": [
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
@@ -8,6 +9,8 @@
         "mcp"
       ],
       "description": "List the caller's recent changes, newest first, with ids that `actions.undo` accepts.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "limit": {
@@ -95,11 +98,14 @@
         "title": "ChangeList",
         "type": "object"
       },
+      "roles": null,
       "scope": "actions:read",
       "title": "Actions Changes",
+      "undoable": null,
       "write": false
     },
     {
+      "audit": true,
       "channels": [
         "api",
         "cli",
@@ -107,6 +113,8 @@
         "mcp"
       ],
       "description": "Take back one of your own changes. Refuses if the record was edited after it.",
+      "destructive": false,
+      "idempotent": true,
       "input_schema": {
         "properties": {
           "id": {
@@ -172,15 +180,20 @@
         "title": "ChangeOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "actions:write",
       "title": "Actions Undo",
+      "undoable": "undoing is itself the way back; to redo, run the original action again",
       "write": true
     },
     {
+      "audit": true,
       "channels": [
         "mcp"
       ],
       "description": "Attach a summary and your model name to the current working session (optional).",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "input_tokens": {
@@ -250,11 +263,14 @@
         "title": "RunOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "actions:write",
       "title": "Agent Report",
+      "undoable": "a time report about the agent's own work; no business data changes",
       "write": true
     },
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
@@ -262,6 +278,8 @@
         "mcp"
       ],
       "description": "Which feature flags are on for you in this organization.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": null,
       "name": "flags.evaluate",
       "output_schema": {
@@ -280,11 +298,14 @@
         "title": "FlagState",
         "type": "object"
       },
+      "roles": null,
       "scope": "flags:read",
       "title": "Flags Evaluate",
+      "undoable": null,
       "write": false
     },
     {
+      "audit": true,
       "channels": [
         "api",
         "cli",
@@ -292,6 +313,8 @@
         "mcp"
       ],
       "description": "Cancel a running flow (Temporal engine only).",
+      "destructive": true,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "id": {
@@ -377,17 +400,22 @@
         "title": "RunOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "flows:write",
       "title": "Flows Cancel",
+      "undoable": "a cancelled run cannot be resumed; start a new one",
       "write": true
     },
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
         "mcp"
       ],
       "description": "Which engine runs flows here, which flows exist, and what each engine can and cannot do.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": null,
       "name": "flows.catalog",
       "output_schema": {
@@ -450,11 +478,14 @@
         "title": "FlowCatalog",
         "type": "object"
       },
+      "roles": null,
       "scope": "flows:read",
       "title": "Flows Catalog",
+      "undoable": null,
       "write": false
     },
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
@@ -462,6 +493,8 @@
         "mcp"
       ],
       "description": "List recent flow runs of this organization.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "flow": {
@@ -576,11 +609,14 @@
         "title": "RunList",
         "type": "object"
       },
+      "roles": null,
       "scope": "flows:read",
       "title": "Flows Runs",
+      "undoable": null,
       "write": false
     },
     {
+      "audit": true,
       "channels": [
         "api",
         "cli",
@@ -588,6 +624,8 @@
         "mcp"
       ],
       "description": "Send a signal to a running flow (Temporal engine only).",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "id": {
@@ -693,11 +731,14 @@
         "title": "RunOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "flows:write",
       "title": "Flows Signal",
+      "undoable": "a delivered signal cannot be recalled",
       "write": true
     },
     {
+      "audit": true,
       "channels": [
         "api",
         "cli",
@@ -705,6 +746,8 @@
         "mcp"
       ],
       "description": "Start one of the flows marked startable. Safe to call with an Idempotency-Key.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "flow": {
@@ -796,11 +839,14 @@
         "title": "RunOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "flows:write",
       "title": "Flows Start",
+      "undoable": "a started run is stopped with flows.cancel; what it already did is its own",
       "write": true
     },
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
@@ -808,6 +854,8 @@
         "mcp"
       ],
       "description": "Current status of one run (refreshed from Temporal when that engine ran it).",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "id": {
@@ -893,11 +941,14 @@
         "title": "RunOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "flows:read",
       "title": "Flows Status",
+      "undoable": null,
       "write": false
     },
     {
+      "audit": true,
       "channels": [
         "api",
         "cli",
@@ -905,6 +956,8 @@
         "mcp"
       ],
       "description": "Archive a note. Archived notes are hidden from the default list and read-only.",
+      "destructive": true,
+      "idempotent": true,
       "input_schema": {
         "properties": {
           "id": {
@@ -955,11 +1008,14 @@
         "title": "NoteOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "notes:write",
       "title": "Notes Archive",
+      "undoable": true,
       "write": true
     },
     {
+      "audit": true,
       "channels": [
         "api",
         "cli",
@@ -967,6 +1023,8 @@
         "mcp"
       ],
       "description": "Create a note. Send an Idempotency-Key to make retries safe.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "body": {
@@ -1024,11 +1082,14 @@
         "title": "NoteOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "notes:write",
       "title": "Notes Create",
+      "undoable": true,
       "write": true
     },
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
@@ -1036,6 +1097,8 @@
         "mcp"
       ],
       "description": "Read one note by id.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "id": {
@@ -1086,11 +1149,14 @@
         "title": "NoteOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "notes:read",
       "title": "Notes Get",
+      "undoable": null,
       "write": false
     },
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
@@ -1098,6 +1164,8 @@
         "mcp"
       ],
       "description": "List the organization's notes, newest first.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "include_archived": {
@@ -1198,11 +1266,14 @@
         "title": "NoteList",
         "type": "object"
       },
+      "roles": null,
       "scope": "notes:read",
       "title": "Notes List",
+      "undoable": null,
       "write": false
     },
     {
+      "audit": true,
       "channels": [
         "api",
         "cli",
@@ -1210,6 +1281,8 @@
         "mcp"
       ],
       "description": "Change a note's title or body. Archived notes cannot be edited.",
+      "destructive": false,
+      "idempotent": true,
       "input_schema": {
         "properties": {
           "body": {
@@ -1287,11 +1360,14 @@
         "title": "NoteOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "notes:write",
       "title": "Notes Update",
+      "undoable": true,
       "write": true
     },
     {
+      "audit": false,
       "channels": [
         "api",
         "cli",
@@ -1299,6 +1375,8 @@
         "mcp"
       ],
       "description": "The effective value of a runtime setting for this organization.",
+      "destructive": false,
+      "idempotent": false,
       "input_schema": {
         "properties": {
           "key": {
@@ -1337,8 +1415,10 @@
         "title": "SettingOut",
         "type": "object"
       },
+      "roles": null,
       "scope": "flags:read",
       "title": "Settings Get",
+      "undoable": null,
       "write": false
     }
   ]

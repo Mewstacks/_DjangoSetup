@@ -13,7 +13,12 @@ from django.db import models, transaction
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
-from apps.common.encryption import EncryptedTextField, blind_index
+from apps.common.encryption import (
+    EncryptedTextField,
+    blind_index,
+    blind_index_candidates,
+    chain_digest,
+)
 from apps.common.models import AppendOnlyQuerySet, UUIDTimeStampedModel
 
 GENESIS = "0" * 64
@@ -61,6 +66,8 @@ class ProcessingPurpose(UUIDTimeStampedModel):
     # Art. 14: processing of children's data needs the specific, prominent consent of a parent
     # or guardian. A purpose that involves children makes the API ask for that confirmation.
     involves_children = models.BooleanField(default=False)
+    # Art. 18 VIII: what happens if the person says no. Shown wherever consent is asked.
+    refusal_consequence = models.TextField(blank=True)
     cookie_category = models.CharField(
         max_length=16, choices=CookieCategory.choices, blank=True, default=""
     )
@@ -152,9 +159,17 @@ class DataSubject(UUIDTimeStampedModel):
 
     @classmethod
     def for_email(cls, email: str) -> DataSubject:
-        subject, _ = cls.objects.get_or_create(
-            email_index=cls.index_for(email), defaults={"email": email.strip().casefold()}
-        )
+        current, *older = blind_index_candidates(email, namespace=cls.NAMESPACE)
+        subject = cls.objects.filter(email_index=current).first()
+        if subject is None and older:
+            subject = cls.objects.filter(email_index__in=older).first()
+            if subject is not None:  # written under a key being rotated out
+                subject.email_index = current
+                subject.save(update_fields=["email_index", "updated_at"])
+        if subject is None:
+            subject, _ = cls.objects.get_or_create(
+                email_index=current, defaults={"email": email.strip().casefold()}
+            )
         return subject
 
     @classmethod
@@ -267,7 +282,7 @@ class ConsentRecord(models.Model):
             sort_keys=True,
             default=str,
         )
-        return hashlib.sha256(body.encode()).hexdigest()
+        return chain_digest("consent", body)
 
     def save(
         self,
@@ -361,6 +376,8 @@ class DataSubjectRequest(UUIDTimeStampedModel):
     identity_verified_at = models.DateTimeField(null=True, blank=True)
     export_name = models.CharField(max_length=120, blank=True)
     export_expires_at = models.DateTimeField(null=True, blank=True)
+    # The link is a bearer secret; it stops working after PRIVACY_EXPORT_MAX_DOWNLOADS uses.
+    export_downloads = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
         ordering = ("-created_at",)
@@ -477,6 +494,62 @@ class PrivacyReminder(UUIDTimeStampedModel):
         ]
 
 
+class CookieConsent(UUIDTimeStampedModel):
+    """A visitor's cookie choice, kept as proof (LGPD art. 8 par. 2) without an account.
+
+    ``visitor_id`` is a random identifier the front end mints and stores next to the choice; it
+    is not an account and not an address. Each change of mind is a new row (the newest wins), so
+    the history of what was asked and answered survives. No IP address is stored, only a keyed
+    hash, as in the audit trail.
+    """
+
+    visitor_id = models.UUIDField(db_index=True)
+    categories = models.JSONField(default=dict)  # {"analytics": true, "marketing": false}
+    notice_checksum = models.CharField(max_length=64, blank=True)
+    evidence = models.JSONField(default=dict, blank=True)  # ua_hash, ip_hash
+
+    class Meta:
+        ordering = ("-created_at",)
+        indexes = [models.Index(fields=("visitor_id", "created_at"))]
+
+    def __str__(self) -> str:
+        return f"{self.visitor_id}"
+
+
+class ImpactAssessment(UUIDTimeStampedModel):
+    """A data protection impact assessment (RIPD, LGPD art. 38) for one processing operation.
+
+    The ANPD may ask for it. It describes processing, not people, so it is not personal data.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        APPROVED = "approved", "Approved"
+        REVIEW_DUE = "review_due", "Review due"
+
+    title = models.CharField(max_length=200)
+    status = models.CharField(max_length=12, choices=Status.choices, default=Status.DRAFT)
+    purpose = models.ForeignKey(
+        ProcessingPurpose, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    processing_description = models.TextField()
+    data_categories = models.JSONField(default=list)
+    necessity = models.TextField(blank=True)
+    risks = models.JSONField(
+        default=list
+    )  # [{"risk": "...", "likelihood": "...", "impact": "..."}]
+    measures = models.TextField(blank=True)
+    dpo_opinion = models.TextField(blank=True)
+    approved_at = models.DateTimeField(null=True, blank=True)
+    next_review_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-updated_at",)
+
+    def __str__(self) -> str:
+        return self.title
+
+
 class PersonalDataIncident(UUIDTimeStampedModel):
     class Status(models.TextChoices):
         INVESTIGATING = "investigating", "Investigating"
@@ -496,6 +569,7 @@ class PersonalDataIncident(UUIDTimeStampedModel):
     relevant_risk_or_harm = models.BooleanField(default=False)
     summary = EncryptedTextField()
     risk_assessment = EncryptedTextField(blank=True)
+    measures_taken = EncryptedTextField(blank=True)
     data_categories = models.JSONField(default=list)
     approximate_subject_count = models.PositiveBigIntegerField(null=True, blank=True)
     notification_deadline_at = models.DateTimeField(
@@ -506,7 +580,11 @@ class PersonalDataIncident(UUIDTimeStampedModel):
             "CD/ANPD 15/2024 generally uses 3 business days). Confirm with legal counsel."
         ),
     )
+    # The people affected are told within the same period as the ANPD (Res. CD/ANPD 15/2024).
+    subjects_deadline_at = models.DateTimeField(null=True, blank=True)
     anpd_notified_at = models.DateTimeField(null=True, blank=True)
+    # A first communication may be completed later: up to 20 business days after it.
+    complement_deadline_at = models.DateTimeField(null=True, blank=True)
     subjects_notified_at = models.DateTimeField(null=True, blank=True)
     retain_until = models.DateTimeField(default=incident_retention_target, db_index=True)
 
@@ -535,8 +613,18 @@ class PersonalDataIncident(UUIDTimeStampedModel):
         ):
             from apps.privacy.deadlines import add_business_days
 
-            self.notification_deadline_at = add_business_days(
-                self.confirmed_at, settings.PRIVACY_INCIDENT_BUSINESS_DAYS
+            # Small processing agents get the period doubled (Res. CD/ANPD 15/2024).
+            days = settings.PRIVACY_INCIDENT_BUSINESS_DAYS * (
+                2 if settings.PRIVACY_SMALL_AGENT else 1
+            )
+            self.notification_deadline_at = add_business_days(self.confirmed_at, days)
+            if self.subjects_deadline_at is None:
+                self.subjects_deadline_at = self.notification_deadline_at
+        if self.anpd_notified_at and self.complement_deadline_at is None:
+            from apps.privacy.deadlines import add_business_days
+
+            self.complement_deadline_at = add_business_days(
+                self.anpd_notified_at, settings.PRIVACY_INCIDENT_COMPLEMENT_BUSINESS_DAYS
             )
         self.full_clean()
         super().save(

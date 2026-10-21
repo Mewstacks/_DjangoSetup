@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import logging
+import time
 from typing import cast
 
 from django.conf import settings
@@ -55,6 +56,12 @@ def audit_login_failure(
     key = f"audit:loginfail:{bucket}:{marker}"
     try:
         if not cache.add(key, 1, 60):
+            return
+        # Rotating the attempted account name defeats the per-account key above, so each client
+        # bucket also gets a ceiling on the events that would be written, whatever names it tries.
+        ceiling = f"audit:loginfail-ip:{bucket}:{int(time.time() // 60)}"
+        cache.add(ceiling, 0, 120)
+        if int(cache.incr(ceiling)) > settings.AUDIT_LOGIN_FAILURES_PER_CLIENT_MINUTE:
             return
     except Exception:  # a cache outage must not hide failures: record them
         logger.warning("audit_login_failure_dedupe_unavailable")

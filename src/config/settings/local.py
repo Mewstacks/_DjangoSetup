@@ -13,6 +13,8 @@ HEALTH_DETAIL_PUBLIC = True
 SESSION_COOKIE_SECURE = False
 CSRF_COOKIE_SECURE = False
 AXES_HANDLER = "axes.handlers.database.AxesDatabaseHandler"
+STAFF_MFA_REQUIRED = False  # a fresh clone has no authenticator yet; production keeps it on
+DEV_TOOLS_ALLOWED = True
 
 # Swagger UI and the DRF browsable API load inline styles and CDN assets.
 from django.utils.csp import CSP  # noqa: E402

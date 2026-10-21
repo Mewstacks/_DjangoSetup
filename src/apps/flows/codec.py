@@ -27,10 +27,24 @@ AAD = b"temporal-payload"
 
 
 class EncryptionCodec(PayloadCodec):
-    def __init__(self, key_ring: dict[str, bytes] | None = None, active_key_id: str = "") -> None:
+    def __init__(
+        self,
+        key_ring: dict[str, bytes] | None = None,
+        active_key_id: str = "",
+        *,
+        allow_plaintext: bool | None = None,
+    ) -> None:
         # Tests inject a ring; production derives keys lazily from Django settings.
         self._ring = key_ring
         self._active = active_key_id
+        self._allow_plaintext = allow_plaintext
+
+    def _plaintext_allowed(self) -> bool:
+        if self._allow_plaintext is not None:
+            return self._allow_plaintext
+        from django.conf import settings
+
+        return bool(settings.TEMPORAL_ALLOW_PLAINTEXT_PAYLOADS)
 
     def _key(self, key_id: str) -> bytes:
         if self._ring is not None:
@@ -65,8 +79,13 @@ class EncryptionCodec(PayloadCodec):
         opened: list[Payload] = []
         for payload in payloads:
             if payload.metadata.get("encoding") != ENCODING:
-                opened.append(payload)  # written before encryption was enabled
-                continue
+                # The key is also what authenticates a payload: whoever can reach the Temporal
+                # frontend can start an activity, but only this deployment can seal its input.
+                # Accepting an unsealed payload would let that caller run actions as anyone.
+                if self._plaintext_allowed():
+                    opened.append(payload)  # history from before encryption was switched on
+                    continue
+                raise ValueError("Temporal payload is not sealed; refusing to read it.")
             key_id = payload.metadata[KEY_ID_METADATA].decode()
             nonce, ciphertext = payload.data[:12], payload.data[12:]
             try:

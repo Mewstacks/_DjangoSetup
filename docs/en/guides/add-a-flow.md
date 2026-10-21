@@ -51,7 +51,15 @@ engine from the caller; input that contains those keys is rejected.
 
 ## Safety defaults
 
-- Payloads in Temporal history are encrypted (`TEMPORAL_PAYLOAD_ENCRYPTION`, AES-GCM).
+- Payloads in Temporal history are encrypted (`TEMPORAL_PAYLOAD_ENCRYPTION`, AES-GCM), and an
+  **unsealed** payload is refused: the key is also what proves an activity input came from this
+  deployment. Production refuses to start with Temporal on and no TLS, API key or explicit
+  `TEMPORAL_ALLOW_INSECURE`. Draining history written before encryption needs the temporary
+  `TEMPORAL_ALLOW_PLAINTEXT_PAYLOADS=true`.
+- The task bridge (`django.tasks` on Temporal) runs only declared tasks under
+  `FLOWS_TASK_MODULE_PREFIXES` (default `apps.`).
+- A flow runs as the person who started it, with that person's role, but not with the starting
+  credential's scopes: declare the flow's `scope` to cover everything it does.
 - Context (request id, organization, actor, trace) travels client → workflow → activity.
 - Changing a running workflow needs `workflow.patched`; keep golden replay histories in tests.
 - Run `manage.py flows_sync` after deploys (creates/updates Schedules; `--prune` removes orphans).

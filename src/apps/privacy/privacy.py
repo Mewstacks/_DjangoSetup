@@ -1,8 +1,10 @@
 from apps.privacy.catalog import Category, by_subject, not_personal, personal, self_subject
 from apps.privacy.models import (
     ConsentRecord,
+    CookieConsent,
     DataSubject,
     DataSubjectRequest,
+    ImpactAssessment,
     LegalHold,
     PersonalDataIncident,
     PrivacyNotice,
@@ -15,10 +17,19 @@ for model, reason in (
     (ProcessingPurpose, "Configuration: why we process, not about a person."),
     (PrivacyNotice, "The published notice text reference."),
     (SubProcessor, "Vendors, not people."),
+    (ImpactAssessment, "An assessment of a processing operation; it names no data subject."),
     (PrivacyReminder, "Bookkeeping of reminders sent."),
 ):
     not_personal(model, reason)
 
+personal(
+    CookieConsent,
+    resolver=None,  # keyed by a random visitor id the DPO cannot tie to a person without them
+    fields={"visitor_id": Category.IDENTIFIER, "categories": Category.BEHAVIOR},
+    purpose="compliance-records",
+    retention_field="created_at",
+    on_erase="delete",
+)
 personal(
     DataSubject,
     resolver=self_subject(DataSubject),
@@ -56,7 +67,11 @@ personal(
 personal(
     PersonalDataIncident,
     resolver=None,
-    fields={"summary": Category.CONTENT, "risk_assessment": Category.CONTENT},
+    fields={
+        "summary": Category.CONTENT,
+        "risk_assessment": Category.CONTENT,
+        "measures_taken": Category.CONTENT,
+    },
     purpose="compliance-records",
     on_erase="keep",
     reason="Incident records are kept at least five years (Resolution CD/ANPD 15/2024). They "

@@ -53,13 +53,41 @@ def clear_sessions() -> dict[str, Any]:
 
 @job("maintenance.prune_audit", schedule="55 4 * * *")
 def prune_audit() -> dict[str, Any]:
-    """Delete audit events past AUDIT_RETENTION_DAYS (0 keeps them forever, the default)."""
+    """Delete audit events past AUDIT_RETENTION_DAYS (0 keeps them forever)."""
     days = int(settings.AUDIT_RETENTION_DAYS)
     if days <= 0:
         return {"skipped": "AUDIT_RETENTION_DAYS=0"}
     from apps.audit.integrity import prune
 
     return prune(days)
+
+
+@job("maintenance.verify_audit", schedule="5 5 * * *")
+def verify_audit() -> dict[str, Any]:
+    """Recompute the audit chains and log each head.
+
+    The head lines are the only defence against the newest events being deleted (a shorter chain
+    still verifies), so ship them where the database cannot reach and feed them back to
+    ``manage.py audit_verify --expect``. A broken chain is logged at ERROR for alerting.
+    """
+    import logging
+
+    from apps.audit.integrity import heads, verify_all
+
+    logger = logging.getLogger("apps.audit.integrity")
+    reports = verify_all()
+    broken = [report.chain_key for report in reports if not report.ok]
+    for chain_key, head in heads(reports).items():
+        logger.info(
+            "audit_head", extra={"chain": chain_key, "seq": head["seq"], "hash": head["hash"]}
+        )
+    for report in reports:
+        if not report.ok:
+            logger.error(
+                "audit_chain_broken",
+                extra={"chain": report.chain_key, "problems": report.problems[:5]},
+            )
+    return {"chains": len(reports), "broken": broken}
 
 
 @job("maintenance.prune_flow_runs", schedule="50 4 * * *")

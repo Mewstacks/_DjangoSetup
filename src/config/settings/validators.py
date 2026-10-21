@@ -30,7 +30,9 @@ PLACEHOLDER_MARKERS = (
     "password",
 )
 _BASE64URL = re.compile(r"^[A-Za-z0-9_-]+={0,2}$")
-SECURE_SSLMODES = {"require", "verify-ca", "verify-full"}
+# `require` encrypts but does not check who answered; a certificate-checking mode does.
+VERIFYING_SSLMODES = {"verify-ca", "verify-full"}
+SECURE_SSLMODES = VERIFYING_SSLMODES | {"require"}
 
 
 def check_secret(name: str, value: str, *, min_length: int, min_distinct: int = 12) -> None:
@@ -85,18 +87,32 @@ def check_distinct_secrets(**secrets: str) -> None:
         seen[value] = name
 
 
-def check_database(database: Mapping[str, Any], *, allow_insecure_transport: bool) -> None:
+def check_database(
+    database: Mapping[str, Any],
+    *,
+    allow_insecure_transport: bool,
+    allow_unverified_tls: bool = False,
+) -> None:
     if database.get("ENGINE") != "django.db.backends.postgresql":
         raise ImproperlyConfigured("Production requires PostgreSQL.")
     mode = (database.get("OPTIONS") or {}).get("sslmode")
-    if mode in SECURE_SSLMODES:
+    if mode in VERIFYING_SSLMODES:
         return
+    if mode == "require":
+        if allow_unverified_tls or allow_insecure_transport:
+            return
+        raise ImproperlyConfigured(
+            "sslmode=require encrypts the database connection but never checks the server "
+            "certificate, so anyone on the path can impersonate it. Use sslmode=verify-full "
+            "(with sslrootcert=system or your CA file). DB_ALLOW_UNVERIFIED_TLS=true records "
+            "that you accept the risk."
+        )
     if allow_insecure_transport:
         return
     raise ImproperlyConfigured(
-        "Production database must use TLS: set sslmode to require, verify-ca or verify-full "
-        "(DB_SSL_REQUIRE=true does the first). When Postgres is reachable only over a private "
-        "network you control, DB_ALLOW_INSECURE_TRANSPORT=true records that decision."
+        "Production database must use TLS: set sslmode to verify-full (or verify-ca). When "
+        "Postgres is reachable only over a private network you control, "
+        "DB_ALLOW_INSECURE_TRANSPORT=true records that decision."
     )
 
 
@@ -104,10 +120,11 @@ def check_redis_url(url: str, *, allow_insecure: bool) -> None:
     if not url:
         raise ImproperlyConfigured("Production requires REDIS_URL.")
     parsed = urlparse(url)
-    if parsed.scheme == "rediss" or parsed.password or allow_insecure:
+    if parsed.scheme == "rediss" or allow_insecure:
         return
     raise ImproperlyConfigured(
-        "REDIS_URL must use rediss:// or carry a password. On a private network you control, "
+        "REDIS_URL must use rediss://: it carries sessions, lockout counters and throttles, and a "
+        "password alone travels in clear. On a private network you control, "
         "REDIS_ALLOW_INSECURE=true records that decision."
     )
 
@@ -144,6 +161,68 @@ def check_proxy(*, proxy_ips: list[str], proxy_count: int, direct: bool) -> None
         "reverse proxy or load balancer, or TRUSTED_PROXY_DIRECT=true when clients connect "
         "to the app directly."
     )
+
+
+def check_temporal(
+    *,
+    enabled: bool,
+    payload_encryption: bool,
+    allow_plaintext: bool,
+    tls: bool,
+    api_key: str,
+    allow_insecure: bool,
+) -> None:
+    """Whoever reaches the Temporal frontend can start any activity, so it must be authenticated.
+
+    Sealed payloads are the application-level proof (nobody else holds the key ring); TLS or an
+    API key keeps strangers off the wire. A private network you control is a legitimate answer,
+    but it has to be written down: ``TEMPORAL_ALLOW_INSECURE=true``.
+    """
+    if not enabled:
+        return
+    if not payload_encryption or allow_plaintext:
+        raise ImproperlyConfigured(
+            "Production Temporal needs sealed payloads: TEMPORAL_PAYLOAD_ENCRYPTION=true and "
+            "TEMPORAL_ALLOW_PLAINTEXT_PAYLOADS=false."
+        )
+    if not (tls or api_key or allow_insecure):
+        raise ImproperlyConfigured(
+            "Production Temporal must use TLS (TEMPORAL_TLS=true) or an API key; on a private "
+            "network you control, TEMPORAL_ALLOW_INSECURE=true records that decision."
+        )
+
+
+def check_privacy_contacts(
+    *, controller_name: str, dpo_email: str, dpo_contact_url: str, allow_undeclared: bool
+) -> None:
+    """The controller and a channel to the DPO are published by the transparency endpoint.
+
+    LGPD art. 41 par. 1 asks for the DPO's identity and contact to be public, and small agents
+    that are not required to name one still owe data subjects a channel (Res. CD/ANPD 18/2024).
+    A product that launches with neither has nobody to answer an access request within 15 days.
+    """
+    if allow_undeclared:
+        return
+    if not controller_name.strip():
+        raise ImproperlyConfigured(
+            "Set PRIVACY_CONTROLLER_NAME (and PRIVACY_CONTROLLER_ID): the transparency endpoint "
+            "publishes who is responsible for personal data. "
+            "PRIVACY_ALLOW_UNDECLARED_CONTROLLER=true records that you decided otherwise."
+        )
+    if not (dpo_email.strip() or dpo_contact_url.strip()):
+        raise ImproperlyConfigured(
+            "Set DPO_EMAIL or DPO_CONTACT_URL: data subjects need a channel to the DPO, and the "
+            "15-day reminders are sent there."
+        )
+
+
+def check_public_url(url: str) -> None:
+    parsed = urlparse(url)
+    if parsed.scheme != "https" or not parsed.hostname or parsed.path not in {"", "/"}:
+        raise ImproperlyConfigured(
+            "PUBLIC_URL must be the https origin of this service (https://app.example.com): "
+            "e-mailed links (data exports, verification) are built from it."
+        )
 
 
 def check_email_backend(backend: str) -> None:

@@ -196,13 +196,17 @@ def test_codec_seals_payloads_and_authenticates_them() -> None:
         asyncio.run(codec.decode([tampered]))
 
 
-def test_codec_reads_old_keys_after_rotation_and_legacy_plaintext() -> None:
+def test_codec_reads_old_keys_after_rotation_and_refuses_unsealed_payloads() -> None:
     old = EncryptionCodec(KEY, "k1")
     sealed = asyncio.run(old.encode([Payload(data=b"x", metadata={"encoding": b"binary/plain"})]))
     rotated = EncryptionCodec(KEY, "k2")
     assert asyncio.run(rotated.decode(sealed))[0].data == b"x"
     plain = Payload(data=b"y", metadata={"encoding": b"json/plain"})
-    assert asyncio.run(rotated.decode([plain]))[0] == plain
+    # An unsealed payload is how a stranger on the Temporal network would start an activity.
+    with pytest.raises(ValueError, match="not sealed"):
+        asyncio.run(rotated.decode([plain]))
+    draining = EncryptionCodec(KEY, "k2", allow_plaintext=True)  # history from before sealing
+    assert asyncio.run(draining.decode([plain]))[0] == plain
 
 
 def test_codec_uses_a_subkey_distinct_from_field_encryption() -> None:

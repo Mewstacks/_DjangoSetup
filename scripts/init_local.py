@@ -43,6 +43,10 @@ def main() -> None:
         "REPLACE_WITH_AN_INDEPENDENT_RANDOM_SECRET",
         secrets.token_urlsafe(48),
     )
+    content = content.replace(
+        "REPLACE_WITH_ANOTHER_INDEPENDENT_SECRET",
+        secrets.token_urlsafe(48),
+    )
     content = content.replace("local-postgres-password", secrets.token_urlsafe(24))
     if args.sqlite:
         content = content.replace("DB_ENGINE=postgresql", "DB_ENGINE=sqlite")

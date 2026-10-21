@@ -1,4 +1,6 @@
-# Nightly logical backup to a PVC named `app-backups` (create it, and ship copies off-cluster).
+# Nightly logical backup to a PVC named `app-backups`. The dump holds every tenant's data in the
+# clear: back the PVC with an encrypted StorageClass and ship copies off-cluster encrypted
+# (restic, pgBackRest, or your cloud's snapshot encryption).
 # Restore: pg_restore --clean --if-exists --no-owner -d "$DB" file.dump
 apiVersion: batch/v1
 kind: CronJob
@@ -15,6 +17,7 @@ spec:
       template:
         spec:
           restartPolicy: Never
+          automountServiceAccountToken: false
           securityContext:
             runAsNonRoot: true
             runAsUser: 999
@@ -27,6 +30,7 @@ spec:
               args:
                 - |
                   set -e
+                  umask 077
                   f=/backups/$(date -u +%Y%m%dT%H%M%SZ).dump
                   pg_dump --format=custom --no-owner --file="$f"
                   find /backups -name '*.dump' -mtime +14 -delete
@@ -36,11 +40,16 @@ spec:
                 - {name: PGDATABASE, valueFrom: {configMapKeyRef: {name: app-config, key: DB_NAME}}}
                 - {name: PGUSER, valueFrom: {secretKeyRef: {name: app-secrets, key: DB_USER}}}
                 - {name: PGPASSWORD, valueFrom: {secretKeyRef: {name: app-secrets, key: DB_PASSWORD}}}
+                - {name: PGSSLMODE, value: verify-full}
               securityContext:
                 allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
                 capabilities: {drop: [ALL]}
               volumeMounts:
                 - {name: backups, mountPath: /backups}
+                - {name: tmp, mountPath: /tmp}
           volumes:
             - name: backups
               persistentVolumeClaim: {claimName: app-backups}
+            - name: tmp
+              emptyDir: {}

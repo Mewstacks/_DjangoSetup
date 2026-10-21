@@ -112,7 +112,11 @@ def status(ctx: ActionContext, data: RunRef) -> RunOut:
     return RunOut.of(run)
 
 
-@action("flows.start", write=True)
+@action(
+    "flows.start",
+    write=True,
+    undoable="a started run is stopped with flows.cancel; what it already did is its own",
+)
 def start(ctx: ActionContext, data: StartFlow) -> RunOut:
     """Start one of the flows marked startable. Safe to call with an Idempotency-Key."""
     spec = FLOWS.get(data.flow)
@@ -129,7 +133,7 @@ def start(ctx: ActionContext, data: StartFlow) -> RunOut:
     return RunOut.of(run)
 
 
-@action("flows.signal", write=True)
+@action("flows.signal", write=True, undoable="a delivered signal cannot be recalled")
 def signal(ctx: ActionContext, data: SignalFlow) -> RunOut:
     """Send a signal to a running flow (Temporal engine only)."""
     run = _run(ctx, data.id)
@@ -138,7 +142,12 @@ def signal(ctx: ActionContext, data: SignalFlow) -> RunOut:
     return RunOut.of(run)
 
 
-@action("flows.cancel", write=True, destructive=True)
+@action(
+    "flows.cancel",
+    write=True,
+    destructive=True,
+    undoable="a cancelled run cannot be resumed; start a new one",
+)
 def cancel(ctx: ActionContext, data: RunRef) -> RunOut:
     """Cancel a running flow (Temporal engine only)."""
     run = _run(ctx, data.id)

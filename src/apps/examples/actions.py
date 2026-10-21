@@ -83,20 +83,20 @@ def get_note(ctx: ActionContext, data: NoteRef) -> NoteOut:
     return NoteOut.of(ctx.get(Note, data.id))
 
 
-@action("notes.create", write=True)
+@action("notes.create", write=True, undoable=True)
 def create_note(ctx: ActionContext, data: CreateNote) -> NoteOut:
     """Create a note. Send an Idempotency-Key to make retries safe."""
     return NoteOut.of(services.create_note(ctx, title=data.title, body=data.body))
 
 
-@action("notes.update", write=True, idempotent=True)
+@action("notes.update", write=True, idempotent=True, undoable=True)
 def update_note(ctx: ActionContext, data: UpdateNote) -> NoteOut:
     """Change a note's title or body. Archived notes cannot be edited."""
     note = ctx.get(Note, data.id)
     return NoteOut.of(services.update_note(ctx, note, title=data.title, body=data.body))
 
 
-@action("notes.archive", write=True, idempotent=True, destructive=True)
+@action("notes.archive", write=True, idempotent=True, destructive=True, undoable=True)
 def archive_note(ctx: ActionContext, data: NoteRef) -> NoteOut:
     """Archive a note. Archived notes are hidden from the default list and read-only."""
     return NoteOut.of(services.archive_note(ctx, ctx.get(Note, data.id)))

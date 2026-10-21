@@ -81,6 +81,11 @@ class LoginView(APIView):
 
     @extend_schema(request=LoginSerializer, responses=MeSerializer)
     def post(self, request: Request) -> Response:
+        if not settings.LEGACY_LOGIN_ENABLED:
+            return Response(
+                {"error": {"code": "not_found", "detail": "Sign in through /api/v1/accounts/."}},
+                status=status.HTTP_404_NOT_FOUND,
+            )
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         email = serializer.validated_data["email"].strip().casefold()

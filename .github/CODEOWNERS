@@ -1,0 +1,13 @@
+# Set the owners of your fork before launching a product. A rule that names a user or team
+# that does not exist is ignored by GitHub, so none is shipped.
+#
+# Review-sensitive paths (authentication, tenancy, cryptography, audit, deployment):
+#
+# /src/apps/accounts/        @your-org/security
+# /src/apps/organizations/   @your-org/security
+# /src/apps/audit/           @your-org/security
+# /src/apps/common/          @your-org/security
+# /src/apps/privacy/         @your-org/privacy
+# /src/config/settings/      @your-org/security
+# /deploy/                   @your-org/platform
+# /.github/                  @your-org/platform

@@ -14,6 +14,7 @@ spec:
       labels: {app.kubernetes.io/component: migrate, app.kubernetes.io/name: app}
     spec:
       restartPolicy: Never
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 10001
@@ -22,10 +23,19 @@ spec:
           type: RuntimeDefault
       containers:
         - name: migrate
-          image: ghcr.io/you/app:latest
+          # Same image, by digest, as the overlay (see docs/en/deploy/overview.md); never :latest.
+          image: ghcr.io/you/app@sha256:REPLACE_WITH_THE_RELEASED_DIGEST
           args: ["migrate"]
           env:
             - {name: CONTAINER_ROLE, value: migrate}
+            # The migration runs as the schema owner; everything else runs as the role in
+            # app-secrets, which owns nothing. These two override the envFrom values below.
+            - name: DB_USER
+              valueFrom: {secretKeyRef: {name: app-migrator, key: DB_USER}}
+            - name: DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: app-migrator, key: DB_PASSWORD}}
+            - name: AUDIT_RUNTIME_ROLE
+              valueFrom: {secretKeyRef: {name: app-secrets, key: DB_USER}}
           envFrom:
             - configMapRef: {name: app-config}
             - secretRef: {name: app-secrets}

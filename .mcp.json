@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "saas-devtools": {
+      "command": "uv",
+      "args": ["run", "python", "-m", "devtools.mcp"],
+      "env": {
+        "DJANGO_SETTINGS_MODULE": "config.settings.local"
+      }
+    }
+  }
+}

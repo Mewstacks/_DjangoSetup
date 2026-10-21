@@ -1,6 +1,7 @@
 # syntax=docker/dockerfile:1.7
-# Base images are pinned by tag and bumped by Dependabot; pin by digest in your own registry
-# mirror if you need byte-for-byte rebuilds.
+# Base images are pinned by tag and bumped by Dependabot. For byte-for-byte rebuilds pin them by
+# digest (python:3.12-slim-bookworm@sha256:...) in your own registry mirror; the release workflow
+# publishes the application image's digest, and that digest is what a deployment should name.
 FROM python:3.12-slim-bookworm AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
@@ -13,7 +14,11 @@ RUN python -m pip install --no-cache-dir uv==0.13.3
 
 COPY pyproject.toml uv.lock README.md ./
 COPY src ./src
-RUN uv sync --locked --no-dev --no-editable
+# Optional extras for this image, for example `--build-arg EXTRAS="--extra otel"` so that
+# OTEL_ENABLED=true has the OpenTelemetry packages to load.
+ARG EXTRAS=""
+# hadolint ignore=DL3059
+RUN uv sync --locked --no-dev --no-editable ${EXTRAS}
 
 FROM python:3.12-slim-bookworm AS runtime
 

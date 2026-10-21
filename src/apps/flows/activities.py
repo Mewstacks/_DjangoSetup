@@ -67,7 +67,14 @@ def run_job(call: JobCall) -> dict[str, Any]:
 
 @activity.defn(name=TASK_ACTIVITY)
 def run_task(call: TaskCall) -> Any:
+    from django.conf import settings
+    from django.tasks import Task
     from django.utils.module_loading import import_string
 
+    if not call.path.startswith(tuple(settings.FLOWS_TASK_MODULE_PREFIXES)):
+        raise ApplicationError("That task path is not allowed.", non_retryable=True)
     task = import_string(call.path)
+    if not isinstance(task, Task):
+        # A dotted path is data; only something declared with @task may be called through it.
+        raise ApplicationError("That path is not a task.", non_retryable=True)
     return task.call(*call.args, **call.kwargs)

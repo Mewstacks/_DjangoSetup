@@ -152,6 +152,51 @@ def blind_index(value: str, *, namespace: str) -> str:
     return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
 
 
+def _blind_index_with(secret: str, value: str, namespace: str) -> str:
+    """``blind_index`` under an explicit key; the message layout must match it byte for byte."""
+    normalized = value.strip().casefold().encode()
+    message = namespace.encode() + bytes([0]) + normalized
+    return hmac.new(secret.encode(), message, hashlib.sha256).hexdigest()
+
+
+def blind_index_candidates(value: str, *, namespace: str) -> list[str]:
+    """The index under the current key first, then under every key being rotated out.
+
+    Rotating ``PRIVACY_HMAC_KEY`` changes every index, so a lookup that only knew the new key
+    would stop finding rows written under the old one. During a rotation list the old key in
+    ``PRIVACY_HMAC_KEYS_PREVIOUS``: lookups try each, and a row found under an old key is
+    rewritten under the current one the first time it is used.
+    """
+    current = blind_index(value, namespace=namespace)
+    older = [
+        _blind_index_with(secret, value, namespace)
+        for secret in getattr(settings, "PRIVACY_HMAC_KEYS_PREVIOUS", ())
+        if secret and secret != settings.PRIVACY_HMAC_KEY
+    ]
+    return [current, *older]
+
+
+def _chain_key() -> bytes:
+    configured = getattr(settings, "AUDIT_HMAC_KEY", "")
+    if configured:
+        return str(configured).encode()
+    # Development and tests: a stable key derived from SECRET_KEY. Production sets
+    # AUDIT_HMAC_KEY and refuses to boot without it.
+    return hashlib.sha256(b"saas/chain-hmac|" + settings.SECRET_KEY.encode()).digest()
+
+
+def chain_digest(domain: str, body: str) -> str:
+    """Keyed digest for a tamper-evident chain (audit trail, consent history).
+
+    A plain SHA-256 chain only shows that rows were changed *without* recomputing the hashes;
+    anyone able to write the table can re-chain it consistently. The HMAC key lives in the
+    environment, not the database, so a database writer cannot. ``domain`` keeps a hash
+    computed for one chain from being valid in another.
+    """
+    message = domain.encode() + b"\0" + body.encode()
+    return hmac.new(_chain_key(), message, hashlib.sha256).hexdigest()
+
+
 def validate_not_ciphertext(value: str) -> None:
     """Refuse user input shaped like our own token.
 

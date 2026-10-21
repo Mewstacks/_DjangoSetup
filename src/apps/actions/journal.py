@@ -167,7 +167,12 @@ def undo_entry(ctx: ActionContext, journal_id: Any) -> ActionJournal:
     if handler is None:
         raise Conflict("This kind of change cannot be undone.", code="not_undoable")
     model, fn = handler
-    row = model._default_manager.filter(pk=entry.target_id).first()
+    # The journal entry is already scoped to this organization, but the row it points at is
+    # fetched by id alone: a tampered target_id must not reach another tenant's record.
+    lookup: dict[str, Any] = {"pk": entry.target_id}
+    if any(field.name == "organization" for field in model._meta.get_fields()):
+        lookup["organization"] = ctx.organization
+    row = model._default_manager.filter(**lookup).first()
     if row is None:
         raise NotFound("The record no longer exists.")
     fn(ctx, entry, row)

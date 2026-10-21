@@ -5,6 +5,8 @@
 
 Sources: the settings modules (env vars), docs/reference/actions.json (actions and MCP tools),
 openapi-schema.yml (REST endpoints), the LGPD catalog and the flow engine capability matrix.
+It also writes the files AI coding agents read (AGENTS.md, CLAUDE.md, the Cursor and Copilot
+rules, llms.txt, llms-full.txt and docs/reference/conventions.json) from src/devtools.
 """
 
 from __future__ import annotations
@@ -35,6 +37,7 @@ T = {
         "file": "Defined in",
         "actions_title": "Actions and MCP tools",
         "action": "Action",
+        "tool": "MCP tool",
         "scope": "Scope",
         "write": "Writes",
         "channels": "Channels",
@@ -67,6 +70,7 @@ T = {
         "file": "Definida em",
         "actions_title": "Ações e ferramentas MCP",
         "action": "Ação",
+        "tool": "Ferramenta MCP",
         "scope": "Escopo",
         "write": "Escreve",
         "channels": "Canais",
@@ -152,15 +156,22 @@ def env_page(lang: str) -> str:
 def actions_page(lang: str) -> str:
     t = T[lang]
     data = json.loads((ROOT / "docs" / "reference" / "actions.json").read_text(encoding="utf-8"))
+    from django.conf import settings
+
+    prefix = f"{settings.MCP_TOOL_PREFIX}_" if settings.MCP_TOOL_PREFIX else ""
     rows = [
-        [f"`{a['name']}`", f"`{a['scope']}`", t["yes"] if a["write"] else t["no"],
+        [f"`{a['name']}`",
+         f"`{prefix}{a['name'].replace('.', '_')}`" if "mcp" in a["channels"] else "",
+         f"`{a['scope']}`", t["yes"] if a["write"] else t["no"],
          ", ".join(a["channels"]), a["description"]]
         for a in data["actions"]
     ]  # fmt: skip
     return page(
         lang,
         t["actions_title"],
-        table([t["action"], t["scope"], t["write"], t["channels"], t["description"]], rows),
+        table(
+            [t["action"], t["tool"], t["scope"], t["write"], t["channels"], t["description"]], rows
+        ),
     )
 
 
@@ -261,6 +272,21 @@ def main() -> int:
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8", newline="\n")
             print("wrote", target.relative_to(ROOT))
+    # The files AI coding agents read, rendered from src/devtools/conventions.py. They come after
+    # the reference pages because llms-full.txt embeds them.
+    from devtools import context_files
+
+    for name, content in context_files.render_all().items():
+        target = ROOT / name
+        current = target.read_text(encoding="utf-8") if target.exists() else None
+        if current == content:
+            continue
+        if args.check:
+            stale.append(name)
+            continue
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(content, encoding="utf-8", newline="\n")
+        print("wrote", name)
     if stale:
         print("Out of date; run `python scripts/gen_docs.py`:\n  " + "\n  ".join(stale))
         return 1

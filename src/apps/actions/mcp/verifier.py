@@ -8,13 +8,14 @@ because a token alone does not always name one.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 
 from asgiref.sync import sync_to_async
 from django.conf import settings
 from fastmcp.server.auth import AccessToken, TokenVerifier
 
-from apps.actions.mcp.preflight import client_ip_var, org_slug_var
+from apps.actions.mcp.preflight import org_slug_var, real_ip_var
 from apps.apikeys.authentication import authenticate_key, parse_key
 from apps.organizations.models import Membership
 
@@ -31,7 +32,7 @@ def resource_url(slug: str | None) -> str:
 
 
 def _verify_key(raw: str, slug: str | None) -> AccessToken | None:
-    found = authenticate_key(raw, ip=client_ip_var.get())
+    found = authenticate_key(raw, ip=real_ip_var.get())
     if found is None:
         return None
     key = found.key
@@ -54,10 +55,13 @@ def _verify_key(raw: str, slug: str | None) -> AccessToken | None:
 def _verify_oauth(raw: str, slug: str | None) -> AccessToken | None:
     from oauth2_provider.models import get_access_token_model
 
+    # Tokens are stored as a checksum only (COMPLIANT_BCP_RFC9700_TOKEN_STORAGE), so look the
+    # presented value up by the same SHA-256 DOT computes when it issues one.
+    checksum = hashlib.sha256(raw.encode("utf-8")).hexdigest()
     token = (
         get_access_token_model()
         .objects.select_related("user", "application")
-        .filter(token=raw)
+        .filter(token_checksum=checksum)
         .first()
     )
     if token is None or not token.is_valid():

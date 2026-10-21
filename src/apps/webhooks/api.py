@@ -13,6 +13,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.audit.services import record_event
+from apps.organizations import quotas
 from apps.organizations.models import Membership
 from apps.organizations.viewsets import OrganizationScopedViewSet
 from apps.webhooks import services
@@ -59,6 +60,7 @@ class EndpointViewSet(OrganizationScopedViewSet[WebhookEndpoint]):
     def perform_create(self, serializer: serializers.BaseSerializer[WebhookEndpoint]) -> None:
         secret = new_secret()
         organization = self.get_organization()
+        quotas.webhook_endpoints(organization)
         serializer.save(organization=organization, secret=secret, created_by=self.request.user)
         self._revealed_secret = secret  # shown once, in the creation response only
         record_event(

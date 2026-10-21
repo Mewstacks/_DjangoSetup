@@ -180,3 +180,133 @@ def test_concurrent_writers_of_one_chain_never_fork_it() -> None:
     assert not errors
     report = verify_chain(SYSTEM_CHAIN)
     assert report.ok and report.checked == 50
+
+
+def test_the_chain_is_keyed_so_a_database_writer_cannot_rechain_it() -> None:
+    """Anyone who can write the table can recompute SHA-256; only the key holder can HMAC."""
+    import hashlib
+
+    from django.test import override_settings
+
+    from apps.audit.models import compute_hash
+
+    event = events(None, 1)[0]
+    plain = hashlib.sha256(b"anything").hexdigest()
+    assert event.hash != plain and len(event.hash) == 64
+    with override_settings(AUDIT_HMAC_KEY="another-key-held-outside-the-database-0123456789"):
+        assert event.compute() != event.hash  # the same row hashes differently under another key
+        assert not verify_chain(SYSTEM_CHAIN).ok
+    assert verify_chain(SYSTEM_CHAIN).ok
+    assert compute_hash.__module__ == "apps.audit.models"
+
+
+def test_removing_the_newest_events_is_caught_by_a_recorded_head() -> None:
+    from apps.audit.integrity import heads
+
+    created = events(None, 4)
+    recorded = heads(verify_all())
+    assert verify_chain(SYSTEM_CHAIN, expect=recorded[SYSTEM_CHAIN]).ok
+    if on_postgres:
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT set_config('app.audit_maintenance', 'on', false)")
+            cursor.execute("DELETE FROM audit_auditevent WHERE id = %s", [created[-1].pk])
+    else:
+        AuditEvent._base_manager.filter(pk=created[-1].pk).delete()
+    assert verify_chain(SYSTEM_CHAIN).ok  # a shorter chain still verifies on its own...
+    report = verify_chain(SYSTEM_CHAIN, expect=recorded[SYSTEM_CHAIN])
+    assert not report.ok and any(
+        "missing" in p for p in report.problems
+    )  # ...but not against the head
+
+
+def test_a_recorded_head_that_was_rewritten_is_caught() -> None:
+    created = events(None, 2)
+    bad = {"seq": created[0].seq, "hash": "f" * 64}
+    report = verify_chain(SYSTEM_CHAIN, expect=bad)
+    assert not report.ok and any("differs" in p for p in report.problems)
+
+
+def test_audit_verify_prints_heads_and_accepts_them_back(tmp_path: Any) -> None:
+    import json
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    events(None, 3)
+    out = StringIO()
+    call_command("audit_verify", "--json", stdout=out)
+    recorded = json.loads(out.getvalue())
+    assert recorded[SYSTEM_CHAIN]["seq"] == 3
+    path = tmp_path / "heads.json"
+    path.write_text(out.getvalue(), encoding="utf-8")
+    call_command("audit_verify", "--expect", str(path), stdout=StringIO())
+    recorded[SYSTEM_CHAIN]["seq"] = 99
+    path.write_text(json.dumps(recorded), encoding="utf-8")
+    with pytest.raises(SystemExit):
+        call_command("audit_verify", "--expect", str(path), stdout=StringIO())
+
+
+def test_the_scheduled_verification_logs_every_head(caplog: pytest.LogCaptureFixture) -> None:
+    from apps.flows.jobs import verify_audit
+
+    events(None, 2)
+    with caplog.at_level("INFO", logger="apps.audit.integrity"):
+        result = verify_audit()
+    assert result["broken"] == []
+    assert any(record.message == "audit_head" for record in caplog.records)
+
+
+@needs_postgres
+def test_a_row_outside_the_chain_is_refused_by_the_database() -> None:
+    from django.db import IntegrityError
+
+    with pytest.raises(IntegrityError), connection.cursor() as cursor:
+        cursor.execute(
+            "INSERT INTO audit_auditevent (id, occurred_at, action, target_type, target_id, "
+            "request_id, ip_hash, success, metadata, chain_key, prev_hash, hash) "
+            "VALUES (gen_random_uuid(), now(), 'forged', '', '', '', '', true, '{}', "
+            "'system', '', '')"
+        )
+    connection.close()
+
+
+@needs_postgres
+def test_a_runtime_role_that_does_not_own_the_trail_cannot_rewrite_or_prune_it() -> None:
+    from django.db import DatabaseError
+
+    events(None, 2)
+    with connection.cursor() as cursor:
+        cursor.execute("DROP ROLE IF EXISTS audit_rt")
+        cursor.execute("CREATE ROLE audit_rt NOLOGIN")
+        cursor.execute("GRANT USAGE ON SCHEMA public TO audit_rt")
+        cursor.execute("GRANT SELECT, INSERT ON audit_auditevent TO audit_rt")
+    try:
+        for sql in (
+            "UPDATE audit_auditevent SET action = 'x'",
+            "DELETE FROM audit_auditevent",
+            "TRUNCATE audit_auditevent",
+            "SELECT audit_prune('system', 999)",
+        ):
+            with connection.cursor() as cursor:
+                cursor.execute("SET ROLE audit_rt")
+                with pytest.raises(DatabaseError):
+                    cursor.execute(sql)
+            connection.close()  # an aborted statement poisons the connection
+        with connection.cursor() as cursor:
+            cursor.execute("SET ROLE audit_rt")
+            cursor.execute("SET LOCAL app.audit_maintenance = 'on'")
+            with pytest.raises(DatabaseError):  # the setting alone is not a key
+                cursor.execute("DELETE FROM audit_auditevent")
+        connection.close()
+        with connection.cursor() as cursor:  # once granted, the sanctioned function works
+            cursor.execute("GRANT EXECUTE ON FUNCTION audit_prune(text, bigint) TO audit_rt")
+            cursor.execute("SET ROLE audit_rt")
+            cursor.execute("SELECT audit_prune('system', 1)")
+            assert cursor.fetchone()[0] == 1
+    finally:
+        connection.close()
+        with connection.cursor() as cursor:
+            cursor.execute("REVOKE ALL ON audit_auditevent FROM audit_rt")
+            cursor.execute("REVOKE ALL ON SCHEMA public FROM audit_rt")
+            cursor.execute("REVOKE ALL ON FUNCTION audit_prune(text, bigint) FROM audit_rt")
+            cursor.execute("DROP ROLE audit_rt")

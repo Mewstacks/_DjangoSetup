@@ -2,18 +2,32 @@ from __future__ import annotations
 
 from typing import cast
 
+from django.conf import settings
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
 from apps.organizations.models import Membership
 
+PRIVILEGED_ROLES = frozenset({Membership.Role.OWNER, Membership.Role.ADMIN})
+
 
 class HasOrganizationContext(BasePermission):
     message = "Select an organization with X-Organization-ID."
 
     def has_permission(self, request: Request, view: APIView) -> bool:
-        return getattr(request, "organization_membership", None) is not None
+        membership = getattr(request, "organization_membership", None)
+        if membership is None:
+            return False
+        if settings.ORG_PRIVILEGED_MFA_REQUIRED and membership.role in PRIVILEGED_ROLES:
+            # Bearer credentials were minted by a session that had to pass this check, so only
+            # sessions reach it. The message says why, instead of a bare 403.
+            from apps.accounts.middleware import has_mfa
+
+            if not has_mfa(request.user):
+                self.message = "Owners and administrators must enable two-factor authentication."
+                return False
+        return True
 
 
 class IsOrganizationAdministrator(HasOrganizationContext):

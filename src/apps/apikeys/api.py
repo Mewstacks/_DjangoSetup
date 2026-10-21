@@ -5,6 +5,7 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import Any, cast
 
+from django.conf import settings
 from django.db.models import QuerySet
 from django.utils import timezone
 from drf_spectacular.utils import extend_schema
@@ -16,10 +17,12 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from apps.accounts.models import User
+from apps.accounts.security import recently_authenticated
 from apps.actions.registry import known_scopes, read_scopes
 from apps.apikeys.models import ApiKey
 from apps.audit.services import record_event
 from apps.common.exceptions import Forbidden
+from apps.organizations import quotas
 from apps.organizations.models import Membership, Organization
 from apps.organizations.permissions import HasOrganizationContext
 
@@ -58,7 +61,22 @@ class ApiKeyCreateSerializer(serializers.Serializer[dict[str, Any]]):
     profile = serializers.ChoiceField(choices=list(PROFILES), required=False)
     scopes = serializers.ListField(child=serializers.CharField(), required=False)
     expires_in_days = serializers.IntegerField(min_value=1, max_value=365, required=False)
-    allowed_ips = serializers.ListField(child=serializers.CharField(), required=False)
+    allowed_ips = serializers.ListField(
+        child=serializers.CharField(max_length=64), required=False, max_length=20
+    )
+
+    def validate_allowed_ips(self, value: list[str]) -> list[str]:
+        """A mistyped CIDR used to be skipped at request time, silently widening the list."""
+        import ipaddress
+
+        for entry in value:
+            try:
+                ipaddress.ip_network(entry, strict=False)
+            except ValueError as error:
+                raise serializers.ValidationError(
+                    f"{entry!r} is not an address or CIDR."
+                ) from error
+        return value
 
     def validate(self, attrs: dict[str, Any]) -> dict[str, Any]:
         if bool(attrs.get("profile")) == bool(attrs.get("scopes")):
@@ -88,6 +106,14 @@ class ApiKeyViewSet(
     queryset = ApiKey.objects.none()
     lookup_value_converter = "uuid"
 
+    def _require_recent_authentication(self, request: Request) -> None:
+        """A key outlives the session that made it, so minting one needs a fresh sign-in."""
+        window = int(settings.APIKEY_REQUIRE_RECENT_AUTH_SECONDS)
+        if window and not recently_authenticated(request._request, max_age=window):
+            raise Forbidden(
+                "Sign in again to create or rotate a key.", code="reauthentication_required"
+            )
+
     def _membership(self) -> Membership:
         return cast(Membership, self.request.organization_membership)  # type: ignore[attr-defined]
 
@@ -105,6 +131,8 @@ class ApiKeyViewSet(
         membership = self._membership()
         if membership.role not in {*MANAGING_ROLES, Membership.Role.MEMBER}:
             raise Forbidden("Your role cannot create keys.")
+        self._require_recent_authentication(request)
+        quotas.api_keys(membership.organization)
         serializer = ApiKeyCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -159,6 +187,7 @@ class ApiKeyViewSet(
     @action(detail=True, methods=["post"])
     def rotate(self, request: Request, pk: str | None = None) -> Response:
         old = self.get_object()
+        self._require_recent_authentication(request)
         if old.user_id != request.user.pk:
             # Rotation hands out a fresh secret that authenticates as the key's owner. An
             # administrator may revoke somebody's key, never obtain a working copy of it.

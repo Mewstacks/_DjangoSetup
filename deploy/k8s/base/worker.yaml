@@ -11,6 +11,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/component: worker, app.kubernetes.io/name: app}
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 60
       securityContext:
         runAsNonRoot: true

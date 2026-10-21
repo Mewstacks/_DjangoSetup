@@ -1210,6 +1210,33 @@ paths:
               schema:
                 $ref: '#/components/schemas/CookieConfig'
           description: ''
+  /api/v1/privacy/cookies/consent/:
+    post:
+      operationId: privacy_cookies_consent_create
+      description: |-
+        Record a visitor's cookie choice (art. 8 par. 2: the controller must be able to prove it).
+
+        Anonymous, so throttled; the categories must be the ones the banner offered; strictly
+        necessary cookies are always recorded as accepted because they cannot be refused.
+      tags:
+      - privacy
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CookieConsent'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/CookieConsent'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/CookieConsent'
+        required: true
+      security:
+      - {}
+      responses:
+        '201':
+          description: No response body
   /api/v1/privacy/exports/{token}/:
     get:
       operationId: privacy_exports_retrieve
@@ -4221,6 +4248,8 @@ components:
           type: array
           items:
             type: string
+            maxLength: 64
+          maxItems: 20
       required:
       - label
     ApiKeySecret:
@@ -4364,6 +4393,19 @@ components:
           items: {}
       required:
       - categories
+    CookieConsent:
+      type: object
+      properties:
+        visitor_id:
+          type: string
+          format: uuid
+        categories:
+          type: object
+          additionalProperties:
+            type: boolean
+      required:
+      - categories
+      - visitor_id
     CsrfToken:
       type: object
       properties:
@@ -5038,6 +5080,8 @@ components:
           maximum: 9223372036854775807
           minimum: 0
           format: int64
+        refusal_consequence:
+          type: string
       required:
       - code
       - description

@@ -70,6 +70,23 @@ def _rate_limit(ctx: ActionContext, spec: ActionSpec) -> None:
         raise RateLimited("Too many calls; slow down.", extra={"retry_after": 60})
 
 
+def _denial_may_be_audited(ctx: ActionContext) -> bool:
+    """A credential that is refused over and over must not grow a table that is never pruned.
+
+    The first few refusals per minute are written (they are the signal); the rest are only
+    logged by ``action_invoked``. Fails open, like every counter here.
+    """
+    limit = int(settings.AUDIT_DENIALS_PER_CREDENTIAL_MINUTE)
+    if limit <= 0:
+        return True
+    key = f"actions:denied:{ctx.credential_id or ctx.user.pk}:{int(time.time() // 60)}"
+    try:
+        cache.add(key, 0, 120)
+        return int(cache.incr(key)) <= limit
+    except Exception:
+        return True
+
+
 def _check_access(ctx: ActionContext, spec: ActionSpec) -> None:
     if ctx.channel not in spec.channels:
         raise NotFound("Unknown action.")  # not Forbidden: do not confirm it exists
@@ -204,13 +221,14 @@ def invoke(
             _check_access(ctx, spec)
         except Forbidden as denial:
             outcome = denial.code
-            record_event(
-                action=f"action.{spec.name}",
-                actor=ctx.user,
-                organization=ctx.organization,
-                success=False,
-                metadata={"channel": ctx.channel, "reason": denial.code},
-            )
+            if _denial_may_be_audited(ctx):
+                record_event(
+                    action=f"action.{spec.name}",
+                    actor=ctx.user,
+                    organization=ctx.organization,
+                    success=False,
+                    metadata={"channel": ctx.channel, "reason": denial.code},
+                )
             raise
         _rate_limit(ctx, spec)
         parsed = _parse(spec, payload)

@@ -6,7 +6,7 @@ from rest_framework.routers import DefaultRouter
 from apps.accounts.api import CsrfTokenView, LoginView, LogoutView, MeView
 from apps.actions.rest import ActionCatalogView, ActionInvokeView
 from apps.apikeys.api import ApiKeyViewSet
-from apps.common.views import LivenessView, ReadinessView
+from apps.common.views import LivenessView, ReadinessView, csp_report
 from apps.examples.api import NoteViewSet
 from apps.organizations.api import OrganizationViewSet
 from apps.privacy.api import (
@@ -17,6 +17,7 @@ from apps.privacy.api import (
 )
 from apps.privacy.public_api import (
     CookieConfigView,
+    CookieConsentView,
     ExportDownloadView,
     PublicRequestView,
     PublicVerifyView,
@@ -39,11 +40,13 @@ router.register("privacy/requests", DataSubjectRequestViewSet, basename="privacy
 urlpatterns = [
     path("actions/", ActionCatalogView.as_view(), name="action-catalog"),
     path("actions/<str:name>/", ActionInvokeView.as_view(), name="action-invoke"),
+    path("csp-report/", csp_report, name="csp-report"),
     path("health/live/", LivenessView.as_view(), name="health-live"),
     path("health/ready/", ReadinessView.as_view(), name="health-ready"),
     path("privacy/notice/", ActiveNoticeView.as_view(), name="privacy-notice"),
     path("privacy/transparency/", TransparencyView.as_view(), name="privacy-transparency"),
     path("privacy/cookies/", CookieConfigView.as_view(), name="privacy-cookies"),
+    path("privacy/cookies/consent/", CookieConsentView.as_view(), name="privacy-cookie-consent"),
     path("privacy/public/requests/", PublicRequestView.as_view(), name="privacy-public-request"),
     path("privacy/public/verify/", PublicVerifyView.as_view(), name="privacy-public-verify"),
     path("privacy/exports/<str:token>/", ExportDownloadView.as_view(), name="privacy-export"),

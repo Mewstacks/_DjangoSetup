@@ -180,7 +180,9 @@ def test_django_tasks_run_as_workflows(
     temporal: WorkflowEnvironment, user: User, organization: Organization, membership: Membership
 ) -> None:
     with override_settings(
-        TASKS={"default": {"BACKEND": "apps.flows.task_backend.TemporalTaskBackend"}}
+        TASKS={"default": {"BACKEND": "apps.flows.task_backend.TemporalTaskBackend"}},
+        # The bridge only imports tasks under these prefixes; this module is a test fixture.
+        FLOWS_TASK_MODULE_PREFIXES=("apps.", record_note.func.__module__),
     ):
         from django.tasks import task_backends
 

@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
+import time
 from collections.abc import Awaitable, Callable, MutableMapping
 from typing import Any
 
@@ -19,20 +21,29 @@ _TOO_LARGE = json.dumps(
 ).encode()
 
 
-async def _reject(send: Send) -> None:
+async def _reject(
+    send: Send,
+    *,
+    status: int = 413,
+    code: str = "payload_too_large",
+    detail: str = "Request body too large.",
+) -> None:
+    body = _TOO_LARGE
+    if status != 413:
+        body = json.dumps({"error": {"status": status, "code": code, "detail": detail}}).encode()
     await send(
         {
             "type": "http.response.start",
-            "status": 413,
+            "status": status,
             "headers": [
                 (b"content-type", b"application/json"),
-                (b"content-length", str(len(_TOO_LARGE)).encode()),
+                (b"content-length", str(len(body)).encode()),
                 (b"cache-control", b"no-store"),
                 (b"connection", b"close"),
             ],
         }
     )
-    await send({"type": "http.response.body", "body": _TOO_LARGE})
+    await send({"type": "http.response.body", "body": body})
 
 
 class BodyLimitMiddleware:
@@ -47,6 +58,10 @@ class BodyLimitMiddleware:
     def __init__(self, app: ASGIApp, max_bytes: int | None = None) -> None:
         self.app = app
         self.max_bytes = max_bytes
+
+    @property
+    def read_timeout(self) -> float:
+        return float(getattr(settings, "REQUEST_BODY_TIMEOUT_SECONDS", 30))
 
     @property
     def limit(self) -> int:
@@ -73,8 +88,17 @@ class BodyLimitMiddleware:
 
         messages: list[Message] = []
         total = 0
+        deadline = time.monotonic() + self.read_timeout
         while True:
-            message = await receive()
+            try:
+                message = await asyncio.wait_for(
+                    receive(), timeout=max(deadline - time.monotonic(), 0.001)
+                )
+            except TimeoutError:
+                # A client that sends a byte every few seconds would otherwise hold the worker
+                # (and up to `limit` bytes of memory) for as long as it likes.
+                await _reject(send, status=408, code="request_timeout", detail="Body too slow.")
+                return
             if message["type"] != "http.request":
                 # http.disconnect before the body finished: nothing to serve.
                 await self.app(scope, receive, send)

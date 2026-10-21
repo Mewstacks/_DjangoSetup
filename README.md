@@ -32,10 +32,21 @@ def create_note(ctx: ActionContext, data: CreateNote) -> NoteOut:
 
 ```bash
 uv sync --all-extras
-python scripts/init_local.py --sqlite
-python manage.py migrate && python manage.py createsuperuser
+python scripts/bootstrap.py
 python manage.py runserver
 ```
+
+O `bootstrap` grava o `.env` com segredos novos, migra, semeia as finalidades da LGPD e cria
+administrador verificado, organização e chave de API (exibida uma vez). Para outro nome:
+`python scripts/init_project.py --name meu-produto`.
+
+## Construir com IA
+
+`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.github/copilot-instructions.md` e `llms.txt` são gerados
+de um só livro de regras e checados no CI. O servidor MCP de desenvolvimento
+(`python -m devtools.mcp`, já em `.mcp.json`) deixa Claude, GPT ou qualquer agente descrever o
+projeto, gerar um recurso (`manage.py scaffold`), checar convenções e LGPD, e rodar o gate. Veja o
+[guia de IA](docs/pt-BR/guides/ai-development.md).
 
 Depois: [início rápido](docs/pt-BR/quickstart.md), [arquitetura](docs/pt-BR/architecture.md),
 [adicionar uma ação](docs/pt-BR/guides/add-an-action.md).
@@ -53,4 +64,4 @@ produto automaticamente conforme à LGPD. Cada sistema ainda precisa de finalida
 retenção, fornecedores, avisos de privacidade e responsáveis próprios. Veja a
 [matriz de conformidade](docs/pt-BR/lgpd/compliance-matrix.md).
 
-Segurança: [SECURITY.md](SECURITY.md). Mudanças: [CHANGELOG.md](CHANGELOG.md).
+Segurança: [SECURITY.md](SECURITY.md). Mudanças: [CHANGELOG.pt-BR.md](CHANGELOG.pt-BR.md). Licença: MIT.

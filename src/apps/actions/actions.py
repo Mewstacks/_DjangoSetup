@@ -74,7 +74,12 @@ def list_changes(ctx: ActionContext, data: ListChanges) -> ChangeList:
     )
 
 
-@action("actions.undo", write=True, idempotent=True)
+@action(
+    "actions.undo",
+    write=True,
+    idempotent=True,
+    undoable="undoing is itself the way back; to redo, run the original action again",
+)
 def undo(ctx: ActionContext, data: ChangeRef) -> ChangeOut:
     """Take back one of your own changes. Refuses if the record was edited after it."""
     e = undo_entry(ctx, data.id)
@@ -90,7 +95,13 @@ def undo(ctx: ActionContext, data: ChangeRef) -> ChangeOut:
     )
 
 
-@action("agent.report", write=True, scope="actions:write", channels={"mcp"})
+@action(
+    "agent.report",
+    write=True,
+    scope="actions:write",
+    channels={"mcp"},
+    undoable="a time report about the agent's own work; no business data changes",
+)
 def report_run(ctx: ActionContext, data: RunReport) -> RunOut:
     """Attach a summary and your model name to the current working session (optional)."""
     run = (

@@ -7,6 +7,7 @@ request is not acted on until the e-mail is confirmed.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Any
 
 from django.conf import settings
@@ -21,19 +22,20 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.audit.services import record_event
+from apps.audit.services import hash_ip, record_event
 from apps.common.exceptions import Invalid, NotFound, Unavailable
-from apps.common.network import client_ip_bucket
+from apps.common.network import client_ip, client_ip_bucket
 from apps.common.throttling import IPAnonRateThrottle, IPScopedRateThrottle
 from apps.privacy.lifecycle import mark_verified, start_dsar
 from apps.privacy.models import (
+    CookieConsent,
     DataSubject,
     DataSubjectRequest,
     PrivacyNotice,
     ProcessingPurpose,
     SubProcessor,
 )
-from apps.privacy.services import VERIFY_SALT, read_export, send_confirmation
+from apps.privacy.services import VERIFY_SALT, claim_download, read_export, send_confirmation
 
 VERIFY_MAX_AGE = 48 * 3600
 PER_EMAIL_PER_DAY = 3
@@ -83,6 +85,7 @@ class TransparencyView(PublicBase):
                         "lawful_basis": p.lawful_basis,
                         "data_categories": p.data_categories,
                         "retention_days": p.retention_days,
+                        "refusal_consequence": p.refusal_consequence,
                     }
                     for p in ProcessingPurpose.objects.filter(active=True)
                 ],
@@ -125,6 +128,59 @@ class CookieConfigView(PublicBase):
                 ],
             }
         )
+
+
+class CookieConsentSerializer(serializers.Serializer[dict[str, Any]]):
+    visitor_id = serializers.UUIDField()
+    categories = serializers.DictField(child=serializers.BooleanField())
+
+    def validate_categories(self, value: dict[str, bool]) -> dict[str, bool]:
+        if len(value) > 10:
+            raise serializers.ValidationError("Send at most ten categories.")
+        return value
+
+
+class CookieConsentView(PublicBase):
+    """Record a visitor's cookie choice (art. 8 par. 2: the controller must be able to prove it).
+
+    Anonymous, so throttled; the categories must be the ones the banner offered; strictly
+    necessary cookies are always recorded as accepted because they cannot be refused.
+    """
+
+    throttle_classes = [IPAnonRateThrottle, IPScopedRateThrottle]
+    throttle_scope = "privacy_public"
+
+    @extend_schema(request=CookieConsentSerializer, responses={201: None})
+    def post(self, request: Request) -> Response:
+        serializer = CookieConsentSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        offered = set(
+            ProcessingPurpose.objects.filter(active=True)
+            .exclude(cookie_category="")
+            .values_list("cookie_category", flat=True)
+        )
+        unknown = set(data["categories"]) - offered
+        if unknown:
+            raise Invalid(f"Unknown cookie categories: {', '.join(sorted(unknown))}.")
+        categories = {
+            **{name: bool(accepted) for name, accepted in data["categories"].items()},
+            ProcessingPurpose.CookieCategory.NECESSARY: True,
+        }
+        notice = PrivacyNotice.objects.filter(active=True).first()
+        django_request = request._request
+        record = CookieConsent.objects.create(
+            visitor_id=data["visitor_id"],
+            categories=categories,
+            notice_checksum=notice.checksum_sha256 if notice else "",
+            evidence={
+                "ua_hash": hashlib.sha256(
+                    django_request.headers.get("User-Agent", "").encode()
+                ).hexdigest()[:32],
+                "ip_hash": hash_ip(client_ip(django_request)),
+            },
+        )
+        return Response({"id": str(record.pk), "recorded_at": record.created_at}, status=201)
 
 
 class PublicRequestSerializer(serializers.Serializer[dict[str, Any]]):
@@ -217,6 +273,7 @@ class ExportDownloadView(PublicBase):
             user = getattr(django_request, "user", None)
             if not (user and user.is_authenticated and user.pk == privacy_request.requester_id):
                 raise NotFound("This download link is invalid or has expired.")
+        claim_download(privacy_request)
         record_event(action="privacy.export_downloaded", request=django_request)
         response = HttpResponse(archive, content_type="application/zip")
         response["Content-Disposition"] = 'attachment; filename="my-data.zip"'
@@ -226,6 +283,7 @@ class ExportDownloadView(PublicBase):
 
 __all__ = [
     "CookieConfigView",
+    "CookieConsentView",
     "ExportDownloadView",
     "PublicRequestView",
     "PublicVerifyView",

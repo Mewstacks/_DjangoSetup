@@ -1,6 +1,8 @@
 name: Release
 
-# Tag vX.Y.Z -> image in GHCR with provenance and an SBOM attached to the run.
+# Tag vX.Y.Z -> the full CI gate -> an image in GHCR, scanned, signed (keyless, sigstore) and
+# carrying provenance and an SBOM as OCI attestations -> a GitHub Release. Deploy by the digest
+# this workflow prints, not by the tag: a tag can be moved, a digest cannot.
 on:
   push:
     tags: ["v*.*.*"]
@@ -13,15 +15,24 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  gate:
+    name: CI gate
+    uses: $/.github/workflows/ci.yml  # GitHub's self-repository syntax: this commit, no checkout
+    permissions:
+      contents: read
+
   image:
     name: Publish image
+    needs: gate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
-      contents: read
+      contents: write  # create the GitHub Release
       packages: write  # push to GHCR
-      id-token: write  # sign the provenance attestation
+      id-token: write  # keyless signing and the provenance attestation
       attestations: write  # store the attestation
+    env:
+      IMAGE: ghcr.io/${{ github.repository }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -38,8 +49,31 @@ jobs:
           context: .
           push: true
           tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          sbom: true
+          provenance: mode=max
+      - name: Scan the published image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      - name: Sign the image
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-name: ghcr.io/${{ github.repository }}
           subject-digest: ${{ steps.build.outputs.digest }}
           push-to-registry: true
+      - name: GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          gh release create "$TAG" --verify-tag --generate-notes \
+            --notes "Image: \`${IMAGE}@${DIGEST}\`" \
+            --repo "$GITHUB_REPOSITORY"

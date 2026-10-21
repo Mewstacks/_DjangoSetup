@@ -57,6 +57,13 @@ def describe(spec: ActionSpec) -> dict[str, Any]:
         "scope": spec.scope,
         "write": spec.write,
         "channels": sorted(spec.channels),
+        # Properties that change who may do what or how safely: dropping `roles=` or flipping
+        # `destructive` must show up in the committed catalog diff, not only in code review.
+        "roles": sorted(spec.roles) if spec.roles else None,
+        "destructive": spec.destructive,
+        "idempotent": spec.idempotent,
+        "audit": spec.audit,
+        "undoable": spec.undoable,
         "input_schema": spec.input_model.model_json_schema() if spec.input_model else None,
         "output_schema": spec.output_model.model_json_schema() if spec.output_model else None,
     }

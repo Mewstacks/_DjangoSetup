@@ -35,6 +35,6 @@ class MFAAdapter(DefaultMFAAdapter):  # type: ignore[misc]
         return encryption.encrypt_text(text, associated_data=MFA_AAD)
 
     def decrypt(self, encrypted_text: str) -> str:
-        if not encryption.is_ciphertext(encrypted_text):
-            return encrypted_text  # rows written before the adapter was enabled
+        # An unprefixed value is refused (FIELD_ENCRYPTION_ALLOW_PLAINTEXT is the only way to
+        # read one): anyone able to write the row could otherwise plant a seed of their choice.
         return encryption.decrypt_text(encrypted_text, associated_data=MFA_AAD)

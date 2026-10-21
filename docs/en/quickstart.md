@@ -4,23 +4,25 @@ Requirements: Python 3.12+, [uv](https://docs.astral.sh/uv/). Docker is optional
 
 ```bash
 uv sync --all-extras
-python scripts/init_local.py --sqlite      # writes .env with fresh local secrets
-python manage.py migrate
-python manage.py createsuperuser
+python scripts/bootstrap.py
 python manage.py runserver
 ```
 
-Interactive API docs: `http://localhost:8000/api/docs/` (development only).
+`bootstrap.py` writes `.env` with fresh secrets, migrates (SQLite; `--postgres` for PostgreSQL),
+seeds the LGPD purposes, and creates a verified administrator, an organization and an API key. It
+prints the credentials once. Interactive API docs: `http://localhost:8000/api/docs/` (development
+only). Sign in to the admin at `http://localhost:8000/admin/` (staff need an authenticator in
+production; local settings do not ask).
 
 ## Call your first action
 
 ```bash
 python manage.py action list
-python manage.py action run notes.create --as you@example.com --org acme \
+python manage.py action run notes.create --as admin@example.com --org acme \
   --json '{"title": "Hello"}'
 ```
 
-The same action over HTTP, with an API key (create one in the app, shown once):
+The same action over HTTP, with the API key `bootstrap` printed:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/actions/notes.create/ \
@@ -38,10 +40,22 @@ curl -X POST http://localhost:8000/api/v1/actions/notes.create/ \
 | Temporal | `TEMPORAL_ENABLED=true` - `docker compose --profile temporal up` |
 | Tracing | `OTEL_ENABLED=true` - `docker compose --profile observability up` |
 
+## Build something
+
+```bash
+python manage.py scaffold resource invoices Invoice --fields 'title:str,amount:decimal'
+```
+
+Then follow [Start a product](guides/start-a-product.md). If an AI coding agent is helping, point
+it at `AGENTS.md` and the development MCP server ([guide](guides/ai-development.md)).
+
 ## The quality gate
 
 ```bash
 python scripts/verify.py      # lint, types, tests, migrations, catalog/OpenAPI/docs drift, deploy check
 ```
 
-CI runs the same steps, plus PostgreSQL, dependency audit, secret scan and image scan.
+CI runs the same steps, plus PostgreSQL, dependency audit, secret scan, image scan and a weekly
+scheduled audit.
+
+Something refuses to start? [Troubleshooting](guides/troubleshooting.md).

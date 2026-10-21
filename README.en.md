@@ -32,10 +32,21 @@ def create_note(ctx: ActionContext, data: CreateNote) -> NoteOut:
 
 ```bash
 uv sync --all-extras
-python scripts/init_local.py --sqlite
-python manage.py migrate && python manage.py createsuperuser
+python scripts/bootstrap.py
 python manage.py runserver
 ```
+
+`bootstrap` writes `.env` with fresh secrets, migrates, seeds the LGPD purposes and creates a
+verified administrator, an organization and an API key (shown once). To rename the project:
+`python scripts/init_project.py --name my-product`.
+
+## Build with AI
+
+`AGENTS.md`, `CLAUDE.md`, `.cursor/rules`, `.github/copilot-instructions.md` and `llms.txt` are
+generated from one rulebook and drift-checked in CI. The development MCP server
+(`python -m devtools.mcp`, already in `.mcp.json`) lets Claude, GPT or any agent describe the
+project, generate a resource (`manage.py scaffold`), check conventions and LGPD, and run the gate.
+See the [AI guide](docs/en/guides/ai-development.md).
 
 Then: [quickstart](docs/en/quickstart.md), [architecture](docs/en/architecture.md),
 [add an action](docs/en/guides/add-an-action.md).
@@ -53,4 +64,4 @@ automatically LGPD-compliant. Each system still needs its own purposes, lawful b
 vendors, privacy notices and accountable owners. See the
 [compliance matrix](docs/en/lgpd/compliance-matrix.md).
 
-Security: [SECURITY.md](SECURITY.md). Changes: [CHANGELOG.md](CHANGELOG.md).
+Security: [SECURITY.md](SECURITY.md). Changes: [CHANGELOG.md](CHANGELOG.md). License: MIT.

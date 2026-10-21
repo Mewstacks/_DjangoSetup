@@ -12,6 +12,7 @@ from datetime import timedelta
 from typing import Any
 
 import structlog
+from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 
@@ -39,6 +40,11 @@ def sweep(*, dry_run: bool = False) -> dict[str, Any]:
             report[item.label] = {"skipped": f"purpose {item.purpose!r} does not exist"}
             continue
         cutoff = now - timedelta(days=purpose.retention_days)
+        if item.model._meta.label_lower == settings.AUTH_USER_MODEL.lower():
+            report_item = _sweep_dormant_accounts(cutoff, held_users, dry_run=dry_run)
+            if report_item["expired"]:
+                report[item.label] = report_item
+            continue
         expired = item.model._default_manager.filter(**{f"{item.retention_field}__lt": cutoff})
         owner_field = _owner_field(item)
         if owner_field and held_users:
@@ -59,6 +65,35 @@ def sweep(*, dry_run: bool = False) -> dict[str, Any]:
         record_event(action="privacy.retention_sweep", metadata={"rows": total})
     logger.info("retention_sweep", rows=total, dry_run=dry_run)
     return {"models": report, "total": total, "dry_run": dry_run}
+
+
+def _sweep_dormant_accounts(cutoff: Any, held_users: set[Any], *, dry_run: bool) -> dict[str, Any]:
+    """Anonymize accounts nobody has signed in to since ``cutoff``.
+
+    ``anonymize_user`` (not a bulk ``update``) because an account is more than one column: the
+    address, the password, the groups and the sessions all go. Staff and superusers are never
+    swept: an operator account that is quiet for years is an operations question, not retention.
+    A person who never signed in is dated from when the account was created.
+    """
+    from django.contrib.auth import get_user_model
+    from django.db.models import Q
+
+    from apps.privacy.services import anonymize_user
+
+    users = get_user_model()._default_manager
+    dormant = (
+        users.filter(anonymized_at__isnull=True, is_staff=False, is_superuser=False)
+        .filter(
+            Q(last_login__lt=cutoff) | Q(last_login__isnull=True, date_joined__lt=cutoff),
+        )
+        .exclude(pk__in=held_users)
+    )
+    count = dormant.count()
+    if count and not dry_run:
+        for user in dormant.iterator(chunk_size=200):
+            with transaction.atomic():
+                anonymize_user(user)
+    return {"expired": count, "action": "anonymize", "dry_run": dry_run}
 
 
 def _owner_field(item: Any) -> str:

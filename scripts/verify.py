@@ -30,13 +30,17 @@ DEPLOY_CHECK_ENV = {
     "DJANGO_SETTINGS_MODULE": "config.settings.production",
     "DJANGO_SECRET_KEY": _random_looking("django", 64),
     "DJANGO_ALLOWED_HOSTS": "app.verify.test",
-    "DATABASE_URL": "postgres://u:p@db.verify.test:5432/app?sslmode=require",
+    "PUBLIC_URL": "https://app.verify.test",
+    "PRIVACY_CONTROLLER_NAME": "Verify Ltda",
+    "DPO_EMAIL": "dpo@verify.test",
+    "DATABASE_URL": "postgres://u:p@db.verify.test:5432/app?sslmode=verify-full",
     "REDIS_URL": "rediss://:p@cache.verify.test:6379/0",
     "FIELD_ENCRYPTION_ACTIVE_KEY_ID": "v1",
     "FIELD_ENCRYPTION_KEYS": '{"v1": "'
     + base64.urlsafe_b64encode(hashlib.sha256(b"field-key").digest()).decode()
     + '"}',
     "PRIVACY_HMAC_KEY": _random_looking("hmac", 48),
+    "AUDIT_HMAC_KEY": _random_looking("audit", 48),
     "TRUSTED_PROXY_COUNT": "1",
     "BUCKET_NAME": "verify-bucket",
     "SENTRY_ENABLED": "false",
@@ -57,13 +61,26 @@ def main() -> int:
     parser.add_argument("--fast", action="store_true")
     parser.add_argument("--keep-going", action="store_true")
     parser.add_argument("--deploy-check-only", action="store_true")
+    parser.add_argument(
+        "--print-deploy-env",
+        action="store_true",
+        help="Print the throwaway production variables as an env file (CI boots the image with it)",
+    )
     args = parser.parse_args()
+    if args.print_deploy_env:
+        for name, value in DEPLOY_CHECK_ENV.items():
+            print(f"{name}={value}")
+        return 0
 
     py = sys.executable
     if args.deploy_check_only:
         return (
             0
-            if run("check --deploy", [py, "manage.py", "check", "--deploy"], DEPLOY_CHECK_ENV)
+            if run(
+                "check --deploy",
+                [py, "manage.py", "check", "--deploy", "--fail-level", "WARNING"],
+                DEPLOY_CHECK_ENV,
+            )
             else 1
         )
     steps: list[tuple[str, list[str], dict[str, str] | None]] = [
@@ -87,7 +104,13 @@ def main() -> int:
     steps.append(("openapi drift", [py, "scripts/check_openapi.py"], test_env))
     steps.append(("reference docs drift", [py, "scripts/gen_docs.py", "--check"], test_env))
     if not args.fast:
-        steps.append(("check --deploy", [py, "manage.py", "check", "--deploy"], DEPLOY_CHECK_ENV))
+        steps.append(
+            (
+                "check --deploy",
+                [py, "manage.py", "check", "--deploy", "--fail-level", "WARNING"],
+                DEPLOY_CHECK_ENV,
+            )
+        )
 
     failed: list[str] = []
     for label, cmd, env in steps:

@@ -182,6 +182,53 @@ def check_audit_chain() -> Check:
     )
 
 
+def check_audit_privileges() -> Check:
+    """On PostgreSQL the trail is only tamper-resistant if the runtime is not its owner."""
+    if connection.vendor != "postgresql":
+        return Check("audit privileges", INFO, "SQLite: no trigger or role separation")
+    try:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_get_userbyid(c.relowner) = current_user, "
+                "has_table_privilege(current_user, c.oid, 'UPDATE'), "
+                "has_table_privilege(current_user, c.oid, 'DELETE'), "
+                "has_table_privilege(current_user, c.oid, 'TRUNCATE') "
+                "FROM pg_class c WHERE c.oid = 'audit_auditevent'::regclass"
+            )
+            owns, can_update, can_delete, can_truncate = cursor.fetchone()
+    except Exception as error:
+        return Check("audit privileges", WARN, f"cannot inspect: {type(error).__name__}")
+    if owns or can_update or can_delete or can_truncate:
+        return Check(
+            "audit privileges",
+            WARN,
+            "the runtime role can rewrite the audit trail; connect as a role that does not own "
+            "the schema (AUDIT_RUNTIME_ROLE, see the hardening guide)",
+        )
+    return Check("audit privileges", OK, "the runtime role can append and read, nothing else")
+
+
+def check_privacy() -> Check:
+    """Is the LGPD plumbing configured, not just installed?"""
+    from apps.privacy.models import PrivacyNotice, ProcessingPurpose
+
+    problems = []
+    if not settings.PRIVACY_CONTROLLER_NAME:
+        problems.append("PRIVACY_CONTROLLER_NAME is empty")
+    if not (settings.DPO_EMAIL or settings.DPO_CONTACT_URL):
+        problems.append("no DPO channel (DPO_EMAIL or DPO_CONTACT_URL)")
+    try:
+        if not ProcessingPurpose.objects.filter(active=True).exists():
+            problems.append("no processing purposes (run manage.py privacy_seed)")
+        if not PrivacyNotice.objects.filter(active=True).exists():
+            problems.append("no active privacy notice")
+    except Exception as error:
+        return Check("privacy", FAIL, f"cannot query: {type(error).__name__}")
+    if problems:
+        return Check("privacy", INFO if settings.DEBUG else WARN, "; ".join(problems))
+    return Check("privacy", OK, "controller, DPO channel, purposes and notice are set")
+
+
 def check_telemetry() -> Check:
     if not settings.OTEL_ENABLED:
         return Check("telemetry", INFO, "OpenTelemetry off")
@@ -200,6 +247,8 @@ ALL: list[Callable[[], Check]] = [
     check_flows,
     check_mcp,
     check_audit_chain,
+    check_audit_privileges,
+    check_privacy,
     check_telemetry,
 ]
 

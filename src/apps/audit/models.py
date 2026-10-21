@@ -5,24 +5,28 @@ Three properties, each closing a gap that "append-only in the ORM" alone leaves 
 * **No cascade.** ``actor`` and ``organization`` are foreign keys without a database
   constraint and with ``DO_NOTHING``. Deleting a user or an organization never touches an audit
   row (the old ``SET_NULL`` rewrote them, erasing who did what).
-* **Hash chain.** Every event stores the hash of the previous event of its chain (one chain
-  per organization, plus one for system events) and its own hash over its content. Changing,
-  inserting or removing a row anywhere in the middle breaks every later hash; ``manage.py
-  audit_verify`` finds it. A chain per organization keeps writers of different tenants from
-  serializing behind one lock.
+* **Keyed hash chain.** Every event stores the hash of the previous event of its chain (one
+  chain per organization, plus one for system events) and its own HMAC over its content, keyed
+  by ``AUDIT_HMAC_KEY`` (environment, never the database). Changing, inserting or removing a
+  row anywhere in the middle breaks every later hash, and a database writer cannot re-chain
+  consistently without the key; ``manage.py audit_verify`` finds it. A chain per organization
+  keeps writers of different tenants from serializing behind one lock.
 * **Database trigger** (PostgreSQL). ``UPDATE``, ``DELETE`` and ``TRUNCATE`` on the table
-  raise, so SQL typed into a console is refused too. The retention job is the only caller that
-  may delete, by setting ``app.audit_maintenance`` for its own transaction.
+  raise, so SQL typed into a console is refused too. Deleting is possible only through
+  ``audit_prune()`` (retention), and only for the role that owns the table: a runtime role that
+  is *not* the owner cannot delete, update or disable anything. That separation is what makes
+  "a compromised application account cannot rewrite the trail" true; see the hardening guide.
+* **Check constraint.** A row without ``seq`` or ``hash`` is refused, so a forged INSERT cannot
+  hide outside the chain.
 
-What this does *not* defend against: someone with superuser rights on the database who drops
-the trigger and rewrites the whole chain consistently. Anchor the latest hash somewhere the
-database cannot reach (``audit_verify --print-anchor`` into a log shipper or object lock) if
-that matters for you.
+What this does *not* defend against: the table owner or a database superuser who also holds
+``AUDIT_HMAC_KEY``, and deletion of the *newest* rows (the chain only proves what precedes the
+head). The scheduled ``audit.verify`` job logs each chain head; ship those lines somewhere the
+database cannot reach, and pass them back with ``audit_verify --expect`` to catch tail removal.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
 import re
 import uuid
@@ -36,6 +40,7 @@ from django.db import connection, models, transaction
 from django.db.models.base import ModelBase
 from django.utils import timezone
 
+from apps.common.encryption import chain_digest
 from apps.common.logging import redact
 from apps.common.models import AppendOnlyQuerySet
 
@@ -148,7 +153,7 @@ def compute_hash(
         separators=(",", ":"),
         default=str,
     )
-    return hashlib.sha256(body.encode()).hexdigest()
+    return chain_digest("audit", body)
 
 
 class AuditEvent(models.Model):
@@ -196,7 +201,13 @@ class AuditEvent(models.Model):
                 fields=("chain_key", "seq"),
                 condition=models.Q(seq__isnull=False),
                 name="unique_audit_chain_position",
-            )
+            ),
+            # Every new row belongs to a chain. On PostgreSQL the migration adds this NOT VALID
+            # so rows from before chaining existed do not block it; new rows are always checked.
+            models.CheckConstraint(
+                condition=models.Q(seq__isnull=False) & ~models.Q(hash=""),
+                name="audit_event_is_chained",
+            ),
         ]
 
     def _chain(self) -> str:

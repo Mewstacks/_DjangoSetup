@@ -48,6 +48,9 @@ class ActionSpec:
     idempotent: bool = False
     destructive: bool = False
     audit: bool = False
+    # True: an undo handler reverses it (apps/<app>/undo.py). A string: why it cannot be undone.
+    # Only read actions leave it None.
+    undoable: bool | str | None = None
     title: str = ""
     extra: dict[str, Any] = field(default_factory=dict)
 
@@ -105,6 +108,7 @@ def action(
     idempotent: bool = False,
     destructive: bool = False,
     audit: bool | None = None,
+    undoable: bool | str | None = None,
     title: str = "",
 ) -> Callable[[ActionFn], ActionFn]:
     """Register ``fn`` as the action ``name``. The docstring is the description models read."""
@@ -123,6 +127,14 @@ def action(
         resolved_scope = scope or f"{name.split('.', 1)[0]}:{'write' if write else 'read'}"
         if write and resolved_scope.endswith(":read"):
             raise ValueError(f"Action {name}: a write action cannot use the read scope.")
+        if write and undoable is None:
+            raise ValueError(
+                f"Action {name} writes, so say whether it can be undone: undoable=True (and "
+                "register a handler in <app>/undo.py) or undoable='<why it cannot be>'. An agent "
+                "that changes data must be able to take the change back, or say it cannot."
+            )
+        if undoable is False:
+            raise ValueError(f"Action {name}: undoable=False needs the reason, as a string.")
         input_model, output_model = _models_from_hints(fn, name)
         REGISTRY[name] = ActionSpec(
             name=name,
@@ -137,6 +149,7 @@ def action(
             idempotent=idempotent,
             destructive=destructive,
             audit=write if audit is None else audit,
+            undoable=undoable,
             title=title or name.replace(".", " ").replace("_", " ").title(),
         )
         return fn
@@ -161,12 +174,18 @@ def read_scopes() -> frozenset[str]:
     return frozenset(reads)
 
 
+# Modules imported for every installed app. ``undo`` is here so that a handler cannot be
+# forgotten by not importing it: the first undo of a change would otherwise fail at runtime.
+DISCOVERED = ("actions", "undo")
+
+
 def autodiscover() -> None:
-    """Import ``<app>.actions`` for every installed app, like the admin does for ``admin``."""
+    """Import ``<app>.actions`` and ``<app>.undo``, like the admin does for ``admin``."""
     for config in apps.get_app_configs():
-        module = f"{config.name}.actions"
-        try:
-            importlib.import_module(module)
-        except ModuleNotFoundError as exc:
-            if exc.name != module:  # a real import error inside the module must surface
-                raise
+        for suffix in DISCOVERED:
+            module = f"{config.name}.{suffix}"
+            try:
+                importlib.import_module(module)
+            except ModuleNotFoundError as exc:
+                if exc.name != module:  # a real import error inside the module must surface
+                    raise

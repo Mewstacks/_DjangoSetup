@@ -35,5 +35,8 @@ endpoint é desligado e um evento de auditoria é gravado.
 ## Proteção SSRF
 
 `apps.common.netguard` é usado em toda chamada de saída: só https, todo endereço resolvido deve
-ser público, a conexão vai ao IP validado (sem DNS rebinding), redirecionamentos nunca são
-seguidos, respostas têm tamanho limitado.
+ser globalmente roteável (faixas privadas, NAT de operadora, metadados de nuvem e formas em túnel,
+como NAT64 ou 6to4 embrulhando um IPv4 privado, são recusados), a conexão vai ao IP validado (sem
+DNS rebinding), redirecionamentos nunca são seguidos, nenhum proxy do ambiente é usado, a chamada
+tem um prazo total, e respostas têm tamanho limitado e nunca são descomprimidas. Uma cota por
+organização limita o número de endpoints (`QUOTA_WEBHOOK_ENDPOINTS_PER_ORG`).

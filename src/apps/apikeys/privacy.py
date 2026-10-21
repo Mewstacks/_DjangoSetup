@@ -6,5 +6,6 @@ personal(
     resolver=by_user(ApiKey, "user"),
     fields={"label": Category.CONTENT, "allowed_ips": Category.TECHNICAL},
     purpose="account-and-access",
+    retention_field="created_at",
     on_erase="delete",
 )

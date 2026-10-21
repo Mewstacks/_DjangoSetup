@@ -38,9 +38,29 @@ spec:
       ports:
         - {port: 53, protocol: UDP}
         - {port: 53, protocol: TCP}
-    - ports:
+    # The database, Redis and Temporal live on your private network: narrow this block to
+    # their addresses (or to pod/namespace selectors when they run in the cluster).
+    - to:
+        - ipBlock: {cidr: 10.0.0.0/8}
+        - ipBlock: {cidr: 172.16.0.0/12}
+        - ipBlock: {cidr: 192.168.0.0/16}
+      ports:
         - {port: 5432, protocol: TCP}
         - {port: 6379, protocol: TCP}
         - {port: 7233, protocol: TCP}
+    # Mail, object storage, Sentry: the public internet only. The cloud metadata endpoint
+    # (169.254.169.254), carrier-grade NAT and every private range are excluded, so a request a
+    # user steers cannot reach them even if the application-level guard were bypassed.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              - 169.254.0.0/16
+              - 100.64.0.0/10
+              - 127.0.0.0/8
+      ports:
         - {port: 443, protocol: TCP}
         - {port: 587, protocol: TCP}

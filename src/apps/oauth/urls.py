@@ -14,6 +14,8 @@ from django.views.decorators.csp import csp_override
 from oauth2_provider import urls as dot
 from oauth2_provider import views
 
+from apps.oauth.dcr import restrict_registration
+
 app_name = "oauth2_provider"
 
 # Chrome applies ``form-action`` to the redirect that follows a form post, so a policy of
@@ -29,6 +31,15 @@ urlpatterns = [
         name="authorize",
     ),
     *dot.base_urlpatterns[1:4],  # token, revoke_token, introspect
-    *dot.dcr_urlpatterns,
+    path(
+        "register/",
+        restrict_registration(views.DynamicClientRegistrationView.as_view()),
+        name="dcr-register",
+    ),
+    path(
+        "register/<str:client_id>/",
+        restrict_registration(views.DynamicClientRegistrationManagementView.as_view()),
+        name="dcr-register-management",
+    ),
 ]
 root_urlpatterns = dot.metadata_urlpatterns

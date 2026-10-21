@@ -5,21 +5,21 @@
 | Model | Personal data | Fields | Purpose | Retention field | On erasure |
 |---|---|---|---|---|---|
 | `account.emailaddress` | yes | email (contact), user (identifier) | account-and-access |   | delete |
-| `account.emailconfirmation` | yes | key (credential) | account-and-access | created | delete |
-| `accounts.user` | yes | email (contact), full_name (identifier), password (credential), last_login (behavior) | account-and-access |   | anonymize |
+| `account.emailconfirmation` | yes | key (credential), email_address (contact) | account-and-access | created | delete |
+| `accounts.user` | yes | email (contact), full_name (identifier), password (credential), last_login (behavior) | account-and-access | last_login | anonymize |
 | `actions.actionjournal` | yes | label (content), before_json (content), after_json (content) | security-and-audit | created_at | delete |
 | `actions.agentrun` | yes | summary (content), note (content) | security-and-audit | started_at | delete |
 | `actions.idempotencyrecord` | yes | response_json (content) | product-content | created_at | delete |
 | `admin.logentry` | yes | object_repr (content), change_message (content) | security-and-audit | action_time | delete |
-| `apikeys.apikey` | yes | label (content), allowed_ips (technical) | account-and-access |   | delete |
+| `apikeys.apikey` | yes | label (content), allowed_ips (technical) | account-and-access | created_at | delete |
 | `audit.auditanchor` | no | A chain position and a hash. |   |   |   |
 | `audit.auditevent` | no | Pseudonymous by construction: actor and organization are ids, IPs are HMACs, metadata is validated to hold no personal data. Erasing a person leaves ids that resolve to nothing. |   |   |   |
 | `auth.group` | no | Role definitions, not people. |   |   |   |
 | `auth.permission` | no | Permission definitions, not people. |   |   |   |
-| `axes.accessattempt` | yes | username (identifier), ip_address (technical) | security-and-audit | attempt_time | delete |
+| `axes.accessattempt` | yes | username (identifier), ip_address (technical), user_agent (technical) | security-and-audit | attempt_time | delete |
 | `axes.accessattemptexpiration` | no | Expiry timestamps only. |   |   |   |
-| `axes.accessfailurelog` | yes | username (identifier), ip_address (technical) | security-and-audit |   | delete |
-| `axes.accesslog` | yes | username (identifier), ip_address (technical) | security-and-audit |   | delete |
+| `axes.accessfailurelog` | yes | username (identifier), ip_address (technical), user_agent (technical) | security-and-audit |   | delete |
+| `axes.accesslog` | yes | username (identifier), ip_address (technical), user_agent (technical) | security-and-audit |   | delete |
 | `contenttypes.contenttype` | no | Model registry. |   |   |   |
 | `examples.note` | yes | title (content), body (content) | product-content | created_at | anonymize |
 | `flags.flag` | no | A feature switch. |   |   |   |
@@ -36,16 +36,18 @@
 | `organizations.membership` | yes | role (technical) | account-and-access |   | anonymize |
 | `organizations.organization` | no | A tenant record (name, slug). Where the tenant is a person, the name is account data already covered by that person's User row and erased with the organization. |   |   |   |
 | `privacy.consentrecord` | yes | evidence (technical) | compliance-records |   | keep |
+| `privacy.cookieconsent` | yes | visitor_id (identifier), categories (behavior) | compliance-records | created_at | delete |
 | `privacy.datasubject` | yes | email (contact) | compliance-records |   | anonymize |
 | `privacy.datasubjectrequest` | yes | details (content), response_summary (content) | compliance-records |   | keep |
+| `privacy.impactassessment` | no | An assessment of a processing operation; it names no data subject. |   |   |   |
 | `privacy.legalhold` | yes | reason (content) | compliance-records |   | keep |
-| `privacy.personaldataincident` | yes | summary (content), risk_assessment (content) | compliance-records |   | keep |
+| `privacy.personaldataincident` | yes | summary (content), risk_assessment (content), measures_taken (content) | compliance-records |   | keep |
 | `privacy.privacynotice` | no | The published notice text reference. |   |   |   |
 | `privacy.privacyreminder` | no | Bookkeeping of reminders sent. |   |   |   |
 | `privacy.processingpurpose` | no | Configuration: why we process, not about a person. |   |   |   |
 | `privacy.subprocessor` | no | Vendors, not people. |   |   |   |
 | `sessions.session` | no | Opaque signed session data; expires on its own and is deleted with the account's sessions when the subject is erased (see apps.privacy.services). |   |   |   |
-| `uploads.uploadedfile` | yes | file (content), original_name (content), uploaded_by (identifier) | product-content |   | delete |
+| `uploads.uploadedfile` | yes | file (content), original_name (content), uploaded_by (identifier) | product-content | created_at | delete |
 | `usersessions.usersession` | yes | ip (technical), user_agent (technical) | security-and-audit |   | delete |
 | `webhooks.webhookdelivery` | no | Delivery bookkeeping: status codes and counters. |   |   |   |
 | `webhooks.webhookendpoint` | no | A receiver URL and its signing secret (encrypted); no person. |   |   |   |

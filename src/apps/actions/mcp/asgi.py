@@ -94,6 +94,7 @@ class McpDispatcher:
             request_id_var.set(request_id),
             preflight.client_ip_var.set(address),
             preflight.org_slug_var.set(slug),
+            preflight.real_ip_var.set(preflight.real_address(scope)),
         )
         try:
             if not self.ready:
@@ -119,6 +120,7 @@ class McpDispatcher:
             request_id_var.reset(tokens[0])
             preflight.client_ip_var.reset(tokens[1])
             preflight.org_slug_var.reset(tokens[2])
+            preflight.real_ip_var.reset(tokens[3])
 
     def _decorate(self, send: Send, request_id: str, slug: str | None) -> Send:
         async def wrapped(message: Message) -> None:

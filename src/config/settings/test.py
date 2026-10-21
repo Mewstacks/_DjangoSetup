@@ -26,6 +26,11 @@ if not env_bool("TEST_USE_EXTERNAL_SERVICES", False):
     }
     AXES_HANDLER = "axes.handlers.database.AxesDatabaseHandler"
 
+STAFF_MFA_REQUIRED = False
+DEV_TOOLS_ALLOWED = True
+PRIVACY_MAIL_LANGUAGE = "en"  # the suite asserts English; pt-BR has its own tests
+LEGACY_LOGIN_ENABLED = True  # the legacy endpoint is still covered by its own tests
+APIKEY_REQUIRE_RECENT_AUTH_SECONDS = 0
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
 MAILERS = {"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend", "OPTIONS": {}}}
 FIELD_ENCRYPTION_ACTIVE_KEY_ID = "test-v1"

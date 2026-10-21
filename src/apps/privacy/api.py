@@ -22,6 +22,7 @@ from apps.common.encryption import validate_not_ciphertext
 from apps.common.exceptions import error_body
 from apps.common.network import client_ip
 from apps.common.throttling import IPAnonRateThrottle, IPUserRateThrottle
+from apps.privacy import age
 from apps.privacy.lifecycle import start_after_commit
 from apps.privacy.models import (
     ConsentRecord,
@@ -71,6 +72,7 @@ class ProcessingPurposeSerializer(serializers.ModelSerializer[ProcessingPurpose]
             "lawful_basis",
             "data_categories",
             "retention_days",
+            "refusal_consequence",
         )
 
 
@@ -114,6 +116,11 @@ class ConsentSerializer(serializers.ModelSerializer[ConsentRecord]):
         # Granting needs a live purpose and the live notice. Withdrawing must always work,
         # including for a purpose or notice that was retired after the person consented.
         if attrs["decision"] == ConsentRecord.Decision.GRANTED:
+            if not attrs.get("guardian_confirmed") and age.assess(self._user()).is_minor:
+                # Art. 14 par. 1: whoever the age backend reports as a minor needs a guardian.
+                raise serializers.ValidationError(
+                    {"guardian_confirmed": "A parent or guardian must confirm this consent."}
+                )
             if not attrs["purpose"].active:
                 raise serializers.ValidationError({"purpose": "This purpose is inactive."})
             if not attrs["notice"].active:
@@ -124,6 +131,9 @@ class ConsentSerializer(serializers.ModelSerializer[ConsentRecord]):
                     {"guardian_confirmed": "A parent or guardian must confirm this consent."}
                 )
         return attrs
+
+    def _user(self) -> User:
+        return cast(User, self.context["request"].user)
 
     def _existing_for_key(self, key: uuid.UUID) -> ConsentRecord | None:
         return ConsentRecord.objects.filter(idempotency_key=key).first()

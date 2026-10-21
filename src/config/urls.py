@@ -7,6 +7,9 @@ from django.urls.resolvers import URLPattern, URLResolver
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from rest_framework.permissions import AllowAny, IsAdminUser
 
+handler404 = "apps.common.views.not_found"
+handler500 = "apps.common.views.server_error"
+
 urlpatterns: list[URLPattern | URLResolver] = [
     path("api/v1/", include("config.urls_api")),
     # Accounts: JSON for apps and SPAs (browser and app clients), HTML for OAuth login/consent.

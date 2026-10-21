@@ -41,7 +41,11 @@ def register_third_party() -> None:
         personal(
             model,
             resolver=None,  # keyed by username/IP text, not by an account reference
-            fields={"username": Category.IDENTIFIER, "ip_address": Category.TECHNICAL},
+            fields={
+                "username": Category.IDENTIFIER,
+                "ip_address": Category.TECHNICAL,
+                "user_agent": Category.TECHNICAL,
+            },
             purpose="security-and-audit",
             retention_field="attempt_time" if label.endswith("attempt") else "",
             on_erase="delete",
@@ -100,7 +104,7 @@ def _register_accounts() -> None:
     personal(
         confirmation,
         resolver=confirmations,  # type: ignore[arg-type]
-        fields={"key": Category.CREDENTIAL},
+        fields={"key": Category.CREDENTIAL, "email_address": Category.CONTACT},
         purpose="account-and-access",
         retention_field="created",
         on_erase="delete",

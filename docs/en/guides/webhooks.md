@@ -34,5 +34,8 @@ the endpoint is switched off and an audit event is recorded.
 ## SSRF protection
 
 `apps.common.netguard` is used for every outbound call: https only, every resolved address must
-be public, the connection goes to the validated IP (no DNS rebinding), redirects are never
-followed, responses are size-bounded.
+be globally routable (private ranges, carrier-grade NAT, cloud metadata and tunnelled forms such as
+NAT64 or 6to4 wrappers of a private IPv4 are refused), the connection goes to the validated IP (no
+DNS rebinding), redirects are never followed, no proxy from the environment is used, the call has
+a total deadline, and responses are size-bounded and never decompressed. A per-organization quota
+limits the number of endpoints (`QUOTA_WEBHOOK_ENDPOINTS_PER_ORG`).

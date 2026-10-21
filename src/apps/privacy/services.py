@@ -24,6 +24,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.signing import BadSignature, TimestampSigner
 from django.db import transaction
+from django.db.models import F
 from django.utils import timezone
 
 from apps.audit.services import record_event
@@ -31,6 +32,7 @@ from apps.common.encryption import open_bytes, seal_bytes
 from apps.common.exceptions import Conflict, Forbidden, NotFound
 from apps.common.mail import send_safely
 from apps.privacy.catalog import CATALOG, Category
+from apps.privacy.messages import say
 from apps.privacy.models import (
     ConsentRecord,
     DataSubject,
@@ -132,12 +134,7 @@ def package_export(request: DataSubjectRequest) -> str:
     """Build the archive, seal it with the key ring and store it. Returns the storage name."""
     subject = subject_of(request)
     data = export_subject(subject)
-    readme = (
-        "Your data, as we hold it.\n\n"
-        "data.json holds one list per kind of record (the key is the table). Passwords and "
-        "other credentials are never included. This file was generated at "
-        f"{data['generated_at']} for request {request.pk}.\n"
-    )
+    readme = say("export.readme", at=data["generated_at"], request=request.pk)
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
         archive.writestr("data.json", json.dumps(data, indent=2, ensure_ascii=False))
@@ -154,6 +151,21 @@ def package_export(request: DataSubjectRequest) -> str:
 
 def export_token(request: DataSubjectRequest) -> str:
     return TimestampSigner(salt=EXPORT_SALT).sign(str(request.pk))
+
+
+def claim_download(request: DataSubjectRequest) -> None:
+    """Spend one use of the download link. Atomic, so two parallel requests cannot both pass."""
+    claimed = DataSubjectRequest.objects.filter(
+        pk=request.pk, export_downloads__lt=settings.PRIVACY_EXPORT_MAX_DOWNLOADS
+    ).update(export_downloads=F("export_downloads") + 1)
+    if not claimed:
+        raise NotFound("This download link is invalid or has expired.")
+
+
+def absolute_url(path: str) -> str:
+    """A link that works from a mail client: relative paths go nowhere outside a browser."""
+    base = str(settings.PUBLIC_URL or "").rstrip("/")
+    return f"{base}{path}" if base else path
 
 
 def read_export(token: str) -> tuple[DataSubjectRequest, bytes]:
@@ -307,11 +319,7 @@ DESTRUCTIVE = frozenset({Type.DELETION, Type.ANONYMIZATION, Type.BLOCKING})
 def send_confirmation(request: DataSubjectRequest, address: str) -> None:
     """Mail the signed link that proves control of the mailbox the request names."""
     token = TimestampSigner(salt=VERIFY_SALT).sign(str(request.pk))
-    send_safely(
-        "Confirm your request",
-        f"Confirm that you made this request: {token}\n",
-        [address],
-    )
+    send_safely(say("confirm.subject"), say("confirm.body", token=token), [address])
 
 
 AUTOMATIC = {
@@ -370,41 +378,50 @@ def execute_request(request: DataSubjectRequest) -> dict[str, Any]:
     try:
         if kind in (Type.ACCESS, Type.PORTABILITY):
             package_export(request)
-            summary = "Your export is ready; the download link was sent to you."
+            summary = say("export.summary")
             notify_requester(
                 request,
-                "Your data export is ready",
-                f"Download within {settings.PRIVACY_EXPORT_TTL_DAYS} days:\n"
-                f"/api/v1/privacy/exports/{export_token(request)}/\n",
+                say("export.subject"),
+                say(
+                    "export.body",
+                    days=settings.PRIVACY_EXPORT_TTL_DAYS,
+                    uses=settings.PRIVACY_EXPORT_MAX_DOWNLOADS,
+                    link=absolute_url(f"/api/v1/privacy/exports/{export_token(request)}/"),
+                ),
             )
         elif kind == Type.CONFIRMATION:
             purposes = list(
                 ProcessingPurpose.objects.filter(active=True).values_list("name", flat=True)
             )
-            summary = "We process your data for: " + ", ".join(purposes) + "."
+            held = len(export_subject(subject)["records"])
+            summary = say(
+                "confirmation.summary",
+                purposes=", ".join(purposes),
+                holds=say("confirmation.holds_yes", kinds=held)
+                if held
+                else say("confirmation.holds_no"),
+            )
         elif kind in (Type.DELETION, Type.ANONYMIZATION):
             report = erase_subject(subject)
-            summary = (
-                f"Done. {len(report)} kinds of record were reviewed; see your request history."
-            )
+            summary = say("deletion.summary", count=len(report))
         elif kind == Type.BLOCKING:
             block_subject(subject)
-            summary = "Processing is blocked and your account was deactivated."
+            summary = say("blocking.summary")
         elif kind == Type.CONSENT_WITHDRAWAL:
             count = withdraw_all_consents(subject.user) if subject.user else 0
-            summary = f"{count} consent(s) withdrawn."
+            summary = say("withdrawal.summary", count=count)
         else:  # SHARING_INFORMATION
             vendors = list(SubProcessor.objects.filter(active=True).values_list("name", flat=True))
-            summary = "We share data with: " + (", ".join(vendors) or "no third parties") + "."
+            summary = say("sharing.summary", vendors=", ".join(vendors) or say("sharing.none"))
     except Conflict as error:
         request.transition_to(Status.DENIED, reason_code=error.code, summary=error.detail)
-        notify_requester(request, "About your request", error.detail)
+        notify_requester(request, say("denied.subject"), error.detail)
         return {"state": "denied", "reason": error.code}
     request.refresh_from_db()
     if not request.is_terminal:
         request.transition_to(Status.COMPLETED, summary=summary)
     if kind not in (Type.DELETION, Type.ANONYMIZATION):  # the address no longer exists after those
-        notify_requester(request, "Your request was completed", summary)
+        notify_requester(request, say("completed.subject"), summary)
     record_event(action="privacy.request_completed", metadata={"type": kind})
     return {"state": "completed"}
 
@@ -420,7 +437,7 @@ def finish_review(
         request.transition_to(Status.DENIED, summary=summary, reason_code=reason_code)
     else:
         request.transition_to(Status.COMPLETED, summary=summary)
-    notify_requester(request, "Your request was answered", summary or "Your request was handled.")
+    notify_requester(request, say("answered.subject"), summary or say("answered.default"))
     record_event(action="privacy.review_finished", metadata={"outcome": outcome})
 
 

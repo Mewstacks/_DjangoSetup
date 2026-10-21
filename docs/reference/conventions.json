@@ -1,0 +1,408 @@
+{
+  "commands": [
+    {
+      "run": "uv sync --all-extras",
+      "what": "Install"
+    },
+    {
+      "run": "python scripts/bootstrap.py",
+      "what": "First run (env, database, LGPD purposes, admin, organization)"
+    },
+    {
+      "run": "python manage.py runserver",
+      "what": "Run"
+    },
+    {
+      "run": "python scripts/verify.py --fast",
+      "what": "Quality gate, fast (lint, tests, drift checks)"
+    },
+    {
+      "run": "python scripts/verify.py",
+      "what": "Quality gate, full (adds mypy strict and the production deploy check)"
+    },
+    {
+      "run": "python -m pytest -q",
+      "what": "Tests"
+    },
+    {
+      "run": "python manage.py actions_catalog",
+      "what": "Regenerate the action catalog"
+    },
+    {
+      "run": "python scripts/check_openapi.py --write",
+      "what": "Regenerate the OpenAPI file"
+    },
+    {
+      "run": "python scripts/gen_docs.py",
+      "what": "Regenerate reference docs and AI context files"
+    },
+    {
+      "run": "python manage.py scaffold resource <app> <Model> --fields 'title:str,body:text'",
+      "what": "Scaffold a tenant resource"
+    },
+    {
+      "run": "python manage.py doctor",
+      "what": "Is this deployment sound?"
+    },
+    {
+      "run": "python manage.py privacy_seed",
+      "what": "Seed LGPD purposes and the platform's sub-processor stubs"
+    },
+    {
+      "run": "python manage.py audit_verify",
+      "what": "Verify the audit hash chains"
+    },
+    {
+      "run": "python -m devtools.mcp",
+      "what": "Development MCP server for agents (stdio)"
+    }
+  ],
+  "convention_files": [
+    {
+      "becomes": "Django models. Tenant data subclasses OrganizationScopedModel.",
+      "discovered_by": "-",
+      "file": "models.py"
+    },
+    {
+      "becomes": "Business rules, one implementation shared by REST viewsets and actions.",
+      "discovered_by": "-",
+      "file": "services.py"
+    },
+    {
+      "becomes": "@action functions: REST /api/v1/actions/<name>/, MCP tool, CLI, Temporal activity.",
+      "discovered_by": "apps.actions.registry.autodiscover",
+      "file": "actions.py"
+    },
+    {
+      "becomes": "@undo_handler functions that take back what a write action changed.",
+      "discovered_by": "apps.actions.registry.autodiscover",
+      "file": "undo.py"
+    },
+    {
+      "becomes": "MCP resources (@mcp_resource) and prompts (@mcp_prompt) for AI agents.",
+      "discovered_by": "apps.actions.mcp.registry.autodiscover",
+      "file": "agent.py"
+    },
+    {
+      "becomes": "register_event(...): webhook event types other systems can subscribe to.",
+      "discovered_by": "apps.webhooks.events",
+      "file": "events.py"
+    },
+    {
+      "becomes": "personal(...) / not_personal(...): the data catalog entry for every model (LGPD).",
+      "discovered_by": "apps.privacy.catalog.autodiscover",
+      "file": "privacy.py"
+    },
+    {
+      "becomes": "declare_setting(key, type, default, description): typed settings an operator can override.",
+      "discovered_by": "apps.flags.registry",
+      "file": "dynamic.py"
+    },
+    {
+      "becomes": "Temporal workflows (no Django ORM inside).",
+      "discovered_by": "apps.flows.registry",
+      "file": "workflows.py"
+    },
+    {
+      "becomes": "Temporal activities (sync functions).",
+      "discovered_by": "apps.flows.registry",
+      "file": "activities.py"
+    },
+    {
+      "becomes": "@job: cron-style maintenance, run by Temporal Schedules or run_scheduler.",
+      "discovered_by": "apps.flows.registry",
+      "file": "jobs.py"
+    },
+    {
+      "becomes": "Classic DRF viewsets, only when a plain CRUD resource is wanted besides actions.",
+      "discovered_by": "config.urls_api",
+      "file": "api.py"
+    }
+  ],
+  "definition_of_done": [
+    "python scripts/verify.py passes (use --fast while iterating, the full gate before you stop).",
+    "New model: classified in <app>/privacy.py; tenant data subclasses OrganizationScopedModel.",
+    "New action: docstring written for a model reader, a scope, write/destructive/undoable declared, input and output are pydantic models.",
+    "Generated files are fresh: actions_catalog, check_openapi.py --write, gen_docs.py.",
+    "A test covers the new behaviour, including a cross-tenant attempt and a read-only role.",
+    "Docs updated in docs/en and docs/pt-BR; the CHANGELOG has a line for anything a user sees.",
+    "No secret, personal data or production detail appears in code, tests, logs or messages."
+  ],
+  "forbidden": [
+    "Model.objects in actions.py or agent.py (use ctx.scoped / ctx.get).",
+    "requests.post(user_supplied_url) or httpx.get(user_supplied_url) (use apps.common.netguard).",
+    "except Exception: pass, or catching an error only to silence a failing test.",
+    "Logging request bodies, tokens, e-mail addresses or documents.",
+    "csrf_exempt without a written reason, raw SQL built with f-strings, eval, pickle.",
+    "Editing generated files (docs/reference/*, openapi-schema.yml, AGENTS.md) by hand.",
+    "Storing an API key, token or secret in clear (hash it, or encrypt it with the key ring)."
+  ],
+  "lgpd_decisions": [
+    {
+      "answer": "Yes: personal(...). No: not_personal(model, 'why'), and be ready to defend the reason.",
+      "question": "Does a row relate to a person (directly or by a key that can be traced back)?"
+    },
+    {
+      "answer": "Category.IDENTIFIER, CONTACT, CREDENTIAL, FINANCIAL, LOCATION, BEHAVIOR, CONTENT, TECHNICAL, SENSITIVE (art. 5 II) or CHILD (art. 14). Sensitive and child fields must be encrypted.",
+      "question": "Which kind of data is each field?"
+    },
+    {
+      "answer": "resolver: by_user(Model, 'field'), by_subject(...), by_email_index(...); None only when rows cannot be tied to a person (the DPO then answers by hand).",
+      "question": "How is a person's row found?"
+    },
+    {
+      "answer": "purpose= a ProcessingPurpose code. Reuse a baseline one (account-and-access, product-content, security-and-audit, compliance-records) or add one in apps/privacy/baseline.py. Consent as the basis means a ConsentRecord chain and a withdrawal path.",
+      "question": "Why is it processed, and on what legal basis?"
+    },
+    {
+      "answer": "on_erase='delete', 'anonymize' (give the replacement values) or 'keep' (give the legal duty that requires it as reason=...).",
+      "question": "What happens on erasure?"
+    },
+    {
+      "answer": "retention_field= the timestamp that starts the clock; the purpose's retention_days ends it.",
+      "question": "How long is it kept?"
+    },
+    {
+      "answer": "Mark the purpose involves_children and require guardian confirmation; see apps/privacy/age.py and docs/en/lgpd/overview.md (ECA Digital).",
+      "question": "Does it involve children?"
+    },
+    {
+      "answer": "Add a SubProcessor (country, transfer mechanism: LGPD art. 33, Res. CD/ANPD 19/2024).",
+      "question": "Does a new vendor see the data?"
+    }
+  ],
+  "project": {
+    "name": "saas-django-backend",
+    "stack": "Python 3.12+, Django 6.1, DRF, django-allauth (MFA), FastMCP, Temporal (optional), PostgreSQL, Redis, pydantic v2, structlog",
+    "summary": "A security-first, LGPD-aware Django 6.1 foundation for a multi-tenant SaaS. One function declared with @action is a REST endpoint, an MCP tool, a Temporal activity and a CLI command at once."
+  },
+  "registered": {
+    "actions": [
+      "actions.changes",
+      "actions.undo",
+      "agent.report",
+      "flags.evaluate",
+      "flows.cancel",
+      "flows.catalog",
+      "flows.runs",
+      "flows.signal",
+      "flows.start",
+      "flows.status",
+      "notes.archive",
+      "notes.create",
+      "notes.get",
+      "notes.list",
+      "notes.update",
+      "settings.get"
+    ],
+    "flows": [
+      "platform.job",
+      "platform.task",
+      "privacy.dsar",
+      "webhooks.deliver"
+    ],
+    "jobs": {
+      "maintenance.clear_oauth_tokens": "10 5 * * *",
+      "maintenance.clear_sessions": "30 4 * * *",
+      "maintenance.close_idle_runs": "*/10 * * * *",
+      "maintenance.prune_audit": "55 4 * * *",
+      "maintenance.prune_flow_runs": "50 4 * * *",
+      "maintenance.prune_idempotency": "20 4 * * *",
+      "maintenance.purge_journal": "40 4 * * *",
+      "maintenance.verify_audit": "5 5 * * *",
+      "privacy.dsar_sla": "5 * * * *",
+      "privacy.dsar_sweep": "*/10 * * * *",
+      "privacy.exports_cleanup": "45 3 * * *",
+      "privacy.incident_deadlines": "15 * * * *",
+      "privacy.retention_sweep": "30 3 * * *",
+      "privacy.unverified_cleanup": "0 4 * * *",
+      "webhooks.dispatch_due": "* * * * *",
+      "webhooks.prune": "0 5 * * *"
+    },
+    "not_personal_models": [
+      "audit.auditanchor",
+      "audit.auditevent",
+      "auth.group",
+      "auth.permission",
+      "axes.accessattemptexpiration",
+      "contenttypes.contenttype",
+      "flags.flag",
+      "flags.setting",
+      "oauth2_provider.application",
+      "organizations.organization",
+      "privacy.impactassessment",
+      "privacy.privacynotice",
+      "privacy.privacyreminder",
+      "privacy.processingpurpose",
+      "privacy.subprocessor",
+      "sessions.session",
+      "webhooks.webhookdelivery",
+      "webhooks.webhookendpoint"
+    ],
+    "personal_models": [
+      "account.emailaddress",
+      "account.emailconfirmation",
+      "accounts.user",
+      "actions.actionjournal",
+      "actions.agentrun",
+      "actions.idempotencyrecord",
+      "admin.logentry",
+      "apikeys.apikey",
+      "axes.accessattempt",
+      "axes.accessfailurelog",
+      "axes.accesslog",
+      "examples.note",
+      "flags.flagrule",
+      "flows.flowrun",
+      "mfa.authenticator",
+      "oauth2_provider.accesstoken",
+      "oauth2_provider.devicegrant",
+      "oauth2_provider.grant",
+      "oauth2_provider.idtoken",
+      "oauth2_provider.refreshtoken",
+      "organizations.membership",
+      "privacy.consentrecord",
+      "privacy.cookieconsent",
+      "privacy.datasubject",
+      "privacy.datasubjectrequest",
+      "privacy.legalhold",
+      "privacy.personaldataincident",
+      "uploads.uploadedfile",
+      "usersessions.usersession",
+      "webhooks.webhookevent"
+    ],
+    "scopes": [
+      "actions:read",
+      "actions:write",
+      "flags:read",
+      "flags:write",
+      "flows:read",
+      "flows:write",
+      "notes:read",
+      "notes:write",
+      "platform:read",
+      "uploads:read",
+      "uploads:write",
+      "webhooks:read",
+      "webhooks:write"
+    ],
+    "settings": [
+      "notes.max_title_length"
+    ],
+    "webhook_events": [
+      "note.archived",
+      "note.created",
+      "webhook.test"
+    ]
+  },
+  "rules": [
+    {
+      "enforced_by": "tests/test_tenancy_structure.py (AST scan) and tests/test_actions.py",
+      "id": "tenant-door",
+      "rule": "Reach tenant rows only through ctx.scoped(Model) or ctx.get(Model, id). Never Model.objects (or _default_manager) in actions.py, actions/*.py or agent.py.",
+      "why": "A forgotten organization filter is a cross-tenant leak (IDOR)."
+    },
+    {
+      "enforced_by": "tests/test_tenancy_structure.py (every organization column is scoped or explained)",
+      "id": "tenant-model",
+      "rule": "A model that holds tenant data subclasses apps.organizations.models.OrganizationScopedModel.",
+      "why": "It carries the organization foreign key the scoped helpers filter on."
+    },
+    {
+      "enforced_by": "review",
+      "id": "thin-adapters",
+      "rule": "Put business rules in services.py. Actions and viewsets only translate input and output.",
+      "why": "REST, MCP, CLI and Temporal then cannot disagree about a rule."
+    },
+    {
+      "enforced_by": "import-time check in apps.actions.registry and tests/test_conformance.py",
+      "id": "write-decides-undo",
+      "rule": "A write action declares undoable=True (and records the change with ctx.record_change plus a handler in undo.py) or undoable='<why it cannot be undone>'. It also calls ctx.set_target(row) so the audit event names the record.",
+      "why": "An agent that changes data must be able to take the change back, or say it cannot."
+    },
+    {
+      "enforced_by": "apps.common.exceptions, mask_error_details in the MCP server",
+      "id": "domain-errors",
+      "rule": "Refuse with a DomainError subclass (NotFound, Forbidden, Invalid, Conflict) and a message written for the caller. Let anything else propagate as a bug.",
+      "why": "Django ValidationError text and ORM errors must not reach clients (they are masked)."
+    },
+    {
+      "enforced_by": "tests/test_lgpd.py, tests/test_catalog_lint.py",
+      "id": "classify-every-model",
+      "rule": "Every model is declared in <app>/privacy.py: personal(model, resolver=..., fields={...}, purpose=..., on_erase=...) or not_personal(model, 'why').",
+      "why": "Export, erasure, retention and the RoPA are generated from the catalog (LGPD art. 18, 37)."
+    },
+    {
+      "enforced_by": "tests/test_catalog_lint.py",
+      "id": "list-personal-fields",
+      "rule": "List every field that holds data about a person (e-mail, phone, document, address, name, ip, user agent) in personal(fields=...). Sensitive and child data are EncryptedTextField.",
+      "why": "An unlisted field is skipped by export and erasure."
+    },
+    {
+      "enforced_by": "review; apps.common.encryption",
+      "id": "encrypt-free-text",
+      "rule": "Use EncryptedTextField for free text that can contain personal data, and blind_index() for equality lookups on it. Never filter on an encrypted column.",
+      "why": "A database dump or a replica must not expose what people wrote."
+    },
+    {
+      "enforced_by": "redaction pipeline, apps.audit.models.validate_metadata, tests/test_conformance.py",
+      "id": "no-secrets-in-output",
+      "rule": "Never put credentials, tokens or personal data in logs, audit metadata, action outputs or error messages. Audit metadata keys are snake_case ids and counts.",
+      "why": "Logs, traces and the audit trail outlive the data (LGPD art. 46)."
+    },
+    {
+      "enforced_by": "tests/test_netguard.py; review",
+      "id": "outbound-http",
+      "rule": "Call a URL somebody else chose only through apps.common.netguard. Never requests/httpx directly with a user-supplied URL.",
+      "why": "SSRF: the server would otherwise reach the cloud metadata service or the private network."
+    },
+    {
+      "enforced_by": "apps.webhooks",
+      "id": "events-are-thin",
+      "rule": "register_event(...) in events.py and emit(...) inside the same transaction, with ids only in the payload.",
+      "why": "The outbox delivers after commit; receivers fetch documents through the API."
+    },
+    {
+      "enforced_by": "review; tests/test_flows.py",
+      "id": "flows-no-orm",
+      "rule": "Workflow code holds no Django ORM and no I/O; it calls actions through apps.flows.sdk.call_action. Activities are sync functions.",
+      "why": "Workflows are replayed deterministically."
+    },
+    {
+      "enforced_by": "scripts/gen_docs.py --check",
+      "id": "settings-through-env",
+      "rule": "Add configuration with env_str/env_int/env_bool/env_list in config/settings/*.py, with a comment above it. Production-only constraints go in config/settings/validators.py.",
+      "why": "The environment-variable reference is generated from these calls."
+    },
+    {
+      "enforced_by": "review; tests/test_tenancy_structure.py",
+      "id": "quotas",
+      "rule": "A resource a tenant can create without bound checks apps.organizations.quotas.",
+      "why": "One tenant must not be able to fill the database or the bucket for all."
+    },
+    {
+      "enforced_by": "tests/test_web_hardening.py",
+      "id": "csp-clean",
+      "rule": "No inline scripts or styles and no third-party origins on shipped pages (script-src and style-src are 'self').",
+      "why": "The Content-Security-Policy is the second line of defence against injected script."
+    },
+    {
+      "enforced_by": "makemigrations --check in scripts/verify.py",
+      "id": "migrations",
+      "rule": "Never edit a migration that has shipped. Add a new one; keep data migrations idempotent.",
+      "why": "Other databases already applied the old one."
+    },
+    {
+      "enforced_by": "tests/test_docs.py, scripts/gen_docs.py --check",
+      "id": "bilingual-docs",
+      "rule": "Every page under docs/en has a twin under docs/pt-BR. Generated references come from scripts/gen_docs.py; do not edit them by hand.",
+      "why": "The platform is documented for Brazilian teams first."
+    },
+    {
+      "enforced_by": "config/settings/validators.py, tests/test_security_regressions.py",
+      "id": "do-not-weaken",
+      "rule": "Do not loosen a production validator, widen CORS, set NETGUARD_ALLOW_PRIVATE or DEBUG outside local settings, or catch and swallow an exception to make a test pass.",
+      "why": "These are the controls the threat model relies on (docs/en/security/threat-model.md)."
+    }
+  ]
+}

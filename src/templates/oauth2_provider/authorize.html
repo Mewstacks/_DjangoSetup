@@ -10,6 +10,10 @@
       <dl class="meta">
         <dt>Destino</dt>
         <dd>{{ redirect_uri }}</dd>
+        <dt>ID</dt>
+        <dd>{{ application.client_id }}</dd>
+        <dt>Registrado</dt>
+        <dd>{{ application.created|date:"d/m/Y H:i" }}</dd>
       </dl>
       <h2>Acesso</h2>
       <ul class="scopes">

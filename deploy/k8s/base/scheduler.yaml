@@ -13,6 +13,7 @@ spec:
     metadata:
       labels: {app.kubernetes.io/component: scheduler, app.kubernetes.io/name: app}
     spec:
+      automountServiceAccountToken: false
       terminationGracePeriodSeconds: 30
       securityContext:
         runAsNonRoot: true

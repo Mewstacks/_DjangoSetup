@@ -2,7 +2,7 @@
 __pycache__/
 *.py[cod]
 *$py.class
-.cache/
+/.cache/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -13,9 +13,9 @@ __pycache__/
 dmypy.json
 
 # Packaging and build artifacts
-build/
-dist/
-downloads/
+/build/
+/dist/
+/downloads/
 *.egg
 *.egg-info/
 .eggs/
@@ -37,7 +37,7 @@ venv.bak/
 !.env.example
 !.env.*.example
 .sentryclirc
-secrets/
+/secrets/
 *.pem
 *.key
 *.p12
@@ -50,10 +50,11 @@ db.sqlite3-*
 *.sqlite3
 *.sqlite3-*
 local_settings.py
-staticfiles/
-media/
-uploads/
-logs/
+/staticfiles/
+/media/
+# Anchored: an unanchored `uploads/` also hid src/apps/uploads/ from git.
+/uploads/
+/logs/
 *.log
 
 

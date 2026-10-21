@@ -123,12 +123,26 @@ def test_database_requires_tls_or_an_explicit_opt_out() -> None:
     validators.check_database(base, allow_insecure_transport=True)
 
 
-def test_redis_needs_tls_or_a_password() -> None:
-    """#7: plain redis:// carried sessions, lockout counters and throttles in clear."""
+def test_sslmode_require_is_not_verified_tls() -> None:
+    """It encrypts but accepts any certificate: a path attacker can impersonate the server."""
+    base = {"ENGINE": "django.db.backends.postgresql", "OPTIONS": {"sslmode": "require"}}
+    with pytest.raises(ImproperlyConfigured, match="never checks"):
+        validators.check_database(base, allow_insecure_transport=False)
+    validators.check_database(base, allow_insecure_transport=False, allow_unverified_tls=True)
+    validators.check_database(
+        {**base, "OPTIONS": {"sslmode": "verify-ca"}}, allow_insecure_transport=False
+    )
+
+
+def test_redis_needs_tls_or_an_explicit_decision() -> None:
+    """#7: plain redis:// carried sessions, lockout counters and throttles in clear. A password
+    over plaintext protects nothing against a listener, so it no longer passes on its own."""
     with pytest.raises(ImproperlyConfigured):
         validators.check_redis_url("redis://cache:6379/0", allow_insecure=False)
+    with pytest.raises(ImproperlyConfigured):
+        validators.check_redis_url("redis://:pw@cache:6379/0", allow_insecure=False)
     validators.check_redis_url("rediss://cache:6379/0", allow_insecure=False)
-    validators.check_redis_url("redis://:pw@cache:6379/0", allow_insecure=False)
+    validators.check_redis_url("redis://:pw@cache:6379/0", allow_insecure=True)
 
 
 def test_hosts_have_no_local_default_in_production() -> None:

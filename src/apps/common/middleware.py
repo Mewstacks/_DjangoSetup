@@ -49,7 +49,9 @@ class AdminIPAllowlistMiddleware:
         self.networks = parse_trusted_networks(settings.ADMIN_ALLOWED_IPS)
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
-        if self.networks and request.path.startswith("/admin/"):
+        # "/admin" (no slash) is redirected by CommonMiddleware, which would confirm the admin
+        # exists to a scanner that is not on the list.
+        if self.networks and (request.path == "/admin" or request.path.startswith("/admin/")):
             import ipaddress
 
             resolved = client_ip(request)
@@ -60,6 +62,28 @@ class AdminIPAllowlistMiddleware:
             if not allowed:
                 return HttpResponseNotFound()
         return self.get_response(request)
+
+
+class SecurityHeadersMiddleware:
+    """Headers Django has no setting for: Permissions-Policy and Cross-Origin-Resource-Policy.
+
+    Permissions-Policy switches off browser features this product never uses, so an injected
+    script cannot ask for the camera or location. CORP keeps other origins from embedding our
+    responses (images, JSON, exports) with a no-cors request.
+    """
+
+    def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
+        self.get_response = get_response
+        self.permissions_policy = settings.PERMISSIONS_POLICY
+        self.corp = settings.SECURE_CROSS_ORIGIN_RESOURCE_POLICY
+
+    def __call__(self, request: HttpRequest) -> HttpResponse:
+        response = self.get_response(request)
+        if self.permissions_policy and "Permissions-Policy" not in response:
+            response["Permissions-Policy"] = self.permissions_policy
+        if self.corp and "Cross-Origin-Resource-Policy" not in response:
+            response["Cross-Origin-Resource-Policy"] = self.corp
+        return response
 
 
 class NoStoreMiddleware:

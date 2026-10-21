@@ -70,6 +70,7 @@
 | GET | `/api/v1/privacy/consents{format}` | privacy_consents_formatted_list |
 | POST | `/api/v1/privacy/consents{format}` | privacy_consents_formatted_create |
 | GET | `/api/v1/privacy/cookies/` | privacy_cookies_retrieve |
+| POST | `/api/v1/privacy/cookies/consent/` | privacy_cookies_consent_create |
 | GET | `/api/v1/privacy/exports/{token}/` | privacy_exports_retrieve |
 | GET | `/api/v1/privacy/notice/` | privacy_notice_retrieve |
 | POST | `/api/v1/privacy/public/requests/` | privacy_public_requests_create |

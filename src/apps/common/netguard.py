@@ -9,18 +9,24 @@ So every call here:
 
 * allows only ``https`` (``http`` only when ``NETGUARD_ALLOW_PRIVATE`` or ``DEBUG`` says this is
   development);
-* resolves the name and refuses it unless *every* answer is a public address;
+* resolves the name and refuses it unless *every* answer is a globally routable address (an
+  allow-list, ``is_global``: a deny-list of "private" ranges misses carrier-grade NAT
+  100.64.0.0/10, which includes the Alibaba metadata address, and tunnelled IPv6 forms);
 * **connects to the address it validated** (the URL is rewritten to the IP, ``Host`` and the TLS
   server name keep the original name), which closes the gap between "checked" and "used" that
   DNS rebinding relies on;
 * never follows redirects (a redirect is a second, unvalidated destination);
-* bounds time and response size.
+* ignores ``HTTP(S)_PROXY`` from the environment (a proxy would receive the pinned request and
+  could be reached through names this module never validated);
+* bounds time (a total deadline, not only per-read timeouts) and response size, and never
+  decompresses what the other side sends.
 """
 
 from __future__ import annotations
 
 import ipaddress
 import socket
+import time
 from dataclasses import dataclass
 from urllib.parse import urlparse, urlunparse
 
@@ -31,6 +37,10 @@ from apps.common.exceptions import DomainError
 
 MAX_RESPONSE_BYTES = 64 * 1024
 DEFAULT_TIMEOUT = 10.0
+# Wall-clock ceiling for one call; a peer that drips a byte per read would otherwise hold a
+# worker for as long as it likes.
+TOTAL_DEADLINE = 20.0
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
 USER_AGENT = "saas-platform-webhooks/1.0"
 
 
@@ -55,22 +65,45 @@ def _development() -> bool:
     return bool(settings.NETGUARD_ALLOW_PRIVATE or settings.DEBUG)
 
 
+def _embedded_ipv4(address: ipaddress.IPv6Address) -> list[ipaddress.IPv4Address] | None:
+    """The IPv4 addresses an IPv6 form tunnels to, or ``None`` for a native IPv6 address."""
+    if address.ipv4_mapped is not None:
+        return [address.ipv4_mapped]
+    if address in _NAT64:
+        return [ipaddress.IPv4Address(int(address) & 0xFFFFFFFF)]
+    if address.sixtofour is not None:
+        return [address.sixtofour]
+    if address.teredo is not None:
+        return list(address.teredo)
+    return None
+
+
+def _is_public(address: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return bool(
+        address.is_global
+        and not address.is_private
+        and not address.is_loopback
+        and not address.is_link_local
+        and not address.is_multicast
+        and not address.is_reserved
+        and not address.is_unspecified
+    )
+
+
 def _check_ip(value: str) -> str:
     try:
         address = ipaddress.ip_address(value)
     except ValueError as exc:
         raise BlockedAddress(f"Unreadable address: {value}") from exc
-    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
-        address = address.ipv4_mapped
-    internal = (
-        address.is_private
-        or address.is_loopback
-        or address.is_link_local
-        or address.is_multicast
-        or address.is_reserved
-        or address.is_unspecified
-    )
-    if internal and not settings.NETGUARD_ALLOW_PRIVATE:
+    if isinstance(address, ipaddress.IPv6Address):
+        embedded = _embedded_ipv4(address)
+        if embedded is not None:
+            public = all(_is_public(inner) for inner in embedded)
+            if not public and not settings.NETGUARD_ALLOW_PRIVATE:
+                raise BlockedAddress("That address is internal and cannot be called.")
+            # A mapped address is the IPv4 address in disguise; the others must be dialled as is.
+            return str(embedded[0]) if address.ipv4_mapped is not None else str(address)
+    if not _is_public(address) and not settings.NETGUARD_ALLOW_PRIVATE:
         raise BlockedAddress("That address is internal and cannot be called.")
     return str(address)
 
@@ -118,9 +151,11 @@ def post(
         "Host": host if port in (80, 443) else f"{host}:{port}",
         "User-Agent": USER_AGENT,
     }
+    deadline = time.monotonic() + TOTAL_DEADLINE
+    sent["Accept-Encoding"] = "identity"
     try:
         with (
-            httpx.Client(timeout=timeout, follow_redirects=False) as client,
+            httpx.Client(timeout=timeout, follow_redirects=False, trust_env=False) as client,
             client.stream(
                 "POST",
                 pinned,
@@ -130,10 +165,13 @@ def post(
             ) as response,
         ):
             received = b""
-            for chunk in response.iter_bytes():
+            # iter_raw: the bytes as sent, so a compressed bomb cannot expand inside one chunk.
+            for chunk in response.iter_raw():
                 received += chunk
                 if len(received) >= MAX_RESPONSE_BYTES:
                     break
+                if time.monotonic() > deadline:
+                    raise DeliveryFailed("The endpoint answered too slowly.")
             return HttpResult(
                 status=response.status_code,
                 headers={k.lower(): v for k, v in response.headers.items()},

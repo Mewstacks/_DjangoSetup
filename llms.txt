@@ -1,0 +1,84 @@
+# saas-django-backend
+
+> A security-first, LGPD-aware Django 6.1 foundation for a multi-tenant SaaS. One function declared with @action is a REST endpoint, an MCP tool, a Temporal activity and a CLI command at once.
+
+Read AGENTS.md first: it holds the rules, the commands and the definition of done. The links below are repository paths.
+
+## Agents
+
+- [AGENTS.md](AGENTS.md): rules, commands, LGPD decision tree, definition of done
+- [docs/reference/conventions.json](docs/reference/conventions.json): the same, as data
+- [docs/reference/actions.json](docs/reference/actions.json): every action, scope and schema
+
+## Start here
+
+- [Platform documentation](docs/en/index.md): A Django 6 base for multi-tenant systems of any kind. One function you write becomes a REST
+- [Quickstart](docs/en/quickstart.md): Requirements: Python 3.12+, uv. Docker is optional.
+- [Architecture](docs/en/architecture.md): Proxy/ingress (TLS) → gunicorn with uvicorn workers → `BodyLimit` ASGI middleware (size and
+
+## Guides
+
+- [Add a flow or a job](docs/en/guides/add-a-flow.md): Workflows call work through activities (`@activity`, in `<app>/activities.py`) that call actions
+- [Add an action](docs/en/guides/add-an-action.md): An action is a function `fn(ctx, data) -> result` with pydantic input and output. Declaring it with
+- [Building with an AI coding agent](docs/en/guides/ai-development.md): This base is meant to be extended by an engineer **and** by an agent (Claude Code, Codex, Cursor,
+- [API conventions](docs/en/guides/api-conventions.md): One set of rules for every endpoint, so a client written for one works for the next.
+- [Accounts, API keys and OAuth](docs/en/guides/auth.md): Staff without `is_superuser` cannot see, edit or reset superusers, cannot change anyone's e-mail
+- [Billing and plans (extension guide)](docs/en/guides/billing.md): The platform does not ship billing: it is the most product-specific part of a SaaS, and a wrong
+- [Management commands](docs/en/guides/commands.md): Run with `python manage.py <command>` (or `entrypoint manage <command>` in the image). Local-only
+- [E-mail and languages](docs/en/guides/email-and-i18n.md): Mail goes through Django's `MAILERS["default"]`. Development prints to the console. In production
+- [Feature flags and settings](docs/en/guides/flags-and-settings.md): Switches operators flip without a deploy. Unknown flags are **off**. Evaluation order: user rule,
+- [Frontend and SPA integration](docs/en/guides/frontend.md): The backend is an API. A browser or mobile client talks to it in one of two ways, and the choice
+- [MCP server](docs/en/guides/mcp.md): Every action whose channels include `mcp` is a tool. The server is stateless streamable HTTP
+- [Observability](docs/en/guides/observability.md): Locally: `docker compose --profile observability up` then open Grafana on port 3000. Sentry stays
+- [Offboarding a tenant](docs/en/guides/offboarding.md): For their members' data in your product you are usually the **operator** and the customer the
+- [Roles and permissions](docs/en/guides/roles-and-permissions.md): Three layers decide whether a call succeeds. All three must say yes.
+- [Start a product on this base](docs/en/guides/start-a-product.md): From a fresh clone to a deployed product, in the order that avoids rework.
+- [Testing](docs/en/guides/testing.md): TEST_USE_EXTERNAL_SERVICES=true DB_ENGINE=postgresql DB_HOST=127.0.0.1 DB_NAME=saas DB_USER=saas \
+- [Troubleshooting](docs/en/guides/troubleshooting.md): Production settings refuse to start on unsafe or missing configuration, and say which variable to
+- [Upgrading from upstream](docs/en/guides/upgrading.md): Your product started as a copy of this template. The template keeps improving (security fixes
+- [Uploads](docs/en/guides/uploads.md): What is checked, in order: the organization's quota (`QUOTA_UPLOAD_FILES_PER_ORG`,
+- [Webhooks](docs/en/guides/webhooks.md): Outbound events with a transactional outbox: an event is written in the same transaction as the
+
+## Reference
+
+- [Actions and MCP tools](docs/en/reference/actions.md)
+- [REST endpoints](docs/en/reference/api.md)
+- [Personal data catalog](docs/en/reference/data-catalog.md)
+- [Flow engines](docs/en/reference/engines.md)
+- [Environment variables](docs/en/reference/env-vars.md)
+
+## Security
+
+- [Audit integrity](docs/en/security/audit-integrity.md): Each organization (plus one system chain) has its own hash chain. A row stores an **HMAC** of the
+- [Builder's checklist: security and LGPD for every change](docs/en/security/builder-checklist.md): Run through the section that matches what you are adding. Each line says what to do and what
+- [Hardening and key management](docs/en/security/hardening.md): HTTPS redirect (health probes exempt), HSTS, secure/HTTP-only/SameSite cookies, a `'self'`-only CSP
+- [Security review](docs/en/security/review.md): Status of the review of this template. Update this page whenever you change authentication,
+- [Threat model](docs/en/security/threat-model.md): Out of scope: a compromised host or build pipeline, malicious superusers who also hold the keys
+
+## Lgpd
+
+- [LGPD compliance matrix](docs/en/lgpd/compliance-matrix.md): Article → platform feature → code → test. "Operator" means the organization running the system
+- [LGPD (Brazilian data protection) overview](docs/en/lgpd/overview.md): LGPD art. 14 requires a parent's or guardian's specific consent for a child's data. The ECA Digital
+- [LGPD document templates](docs/en/lgpd/templates.md): Starting points for the documents the LGPD asks you to have. **They are templates, not legal
+
+## Deploy
+
+- [Deploy anywhere](docs/en/deploy/overview.md): One container image, several roles chosen by the first argument:
+- [Runbooks](docs/en/deploy/runbooks.md): It reached `WEBHOOK_DISABLE_AFTER` consecutive failures. Fix the receiver, re-enable the endpoint,
+
+## Migration
+
+- [Upgrading from the Celery-era template](docs/en/migration/from-celery.md): New required production variables: `AUDIT_HMAC_KEY`, `PUBLIC_URL`, `PRIVACY_CONTROLLER_NAME`,
+
+## Adr
+
+- [ADR 16: Agent-facing files are generated from one rulebook](docs/en/adr/ai-context-generated.md): Agents read different files (`AGENTS.md`, `CLAUDE.md`, Cursor rules, Copilot instructions,
+- [ADR 13: The audit trail is keyed, and only an owner can prune it](docs/en/adr/audit-chain-and-role-split.md): The trail is hash-chained per organization and guarded by a PostgreSQL trigger. A review found
+- [ADR 17: Who is the controller, and whose request is it](docs/en/adr/controller-and-operator.md): LGPD distinguishes the **controller** (decides purposes and means) from the **operator** (processes
+- [Decisions](docs/en/adr/index.md): Short records of choices that shape the code. Each states the reason and the cost.
+- [ADR 14: Row-level security is an opt-in design, not the default](docs/en/adr/row-level-security.md): Tenant isolation today is by construction: actions read only through `ctx.scoped`/`ctx.get`, the
+- [ADR 15: Two MCP servers, with different jobs](docs/en/adr/two-mcp-servers.md): They share nothing at runtime. The development server reuses the same registries (actions, data
+
+## Optional
+
+- [Portuguese documentation](docs/pt-BR/index.md): the same pages in Brazilian Portuguese
