@@ -5,7 +5,7 @@ outros na tag deles até chegar a vez.
 
 1. **Dependências**: Django 6.1.2, DRF 3.18.x; remova o `celery`; adicione os novos requisitos.
 2. **Configurações**: troque `CELERY_*` por `TEMPORAL_*` (veja
-   [variáveis de ambiente](../reference/env-vars.md)); as variáveis `FLY_*` acabaram. Declare seu proxy:
+   [variáveis de ambiente](../reference/env-vars.md)); as variáveis específicas de plataforma do template antigo acabaram. Declare seu proxy:
    `TRUSTED_PROXY_COUNT` ou `TRUSTED_PROXY_IPS`. Novas variáveis obrigatórias em produção:
    `AUDIT_HMAC_KEY`, `PUBLIC_URL`, `PRIVACY_CONTROLLER_NAME`, `DPO_EMAIL`/`DPO_CONTACT_URL`
    ([solução de problemas](../guides/troubleshooting.md)).

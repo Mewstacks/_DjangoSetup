@@ -210,6 +210,7 @@ def test_the_server_offers_the_tools_resources_and_prompts_an_agent_needs(
     assert {
         "describe_project", "list_conventions", "list_actions", "explain_action", "lgpd_check",
         "check_conventions", "scaffold_resource", "run_gate", "search_docs", "get_doc",
+        "framework_guide", "middleware_stack", "list_routes",
     } <= tools  # fmt: skip
     assert {
         "conventions://rules",
@@ -274,3 +275,15 @@ def test_the_docs_resource_and_prompts_work(client_for_server: Any) -> None:
     assert "Architecture" in page
     assert all(text.startswith("error:") for text in refused), refused
     assert "billing.Invoice" in prompt and "not legal advice" in prompt
+
+
+def test_framework_tools_describe_the_live_stack_and_the_primer() -> None:
+    from django.conf import settings
+
+    stack = project.middleware_stack()
+    assert [m["middleware"] for m in stack] == list(settings.MIDDLEWARE)
+    assert all(m["summary"] for m in stack if m["first_party"])
+    assert any(r["path"].startswith("/api/v1/actions") for r in project.list_routes())
+    assert "request.user" in project.framework_guide("middleware")
+    assert "workflow" in project.framework_guide("temporal").lower()
+    assert project.framework_guide("nothing like this").startswith("Topics:")

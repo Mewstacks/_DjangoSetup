@@ -27,6 +27,7 @@ Read AGENTS.md first: it holds the rules, the commands and the definition of don
 - [Management commands](docs/en/guides/commands.md): Run with `python manage.py <command>` (or `entrypoint manage <command>` in the image). Local-only
 - [E-mail and languages](docs/en/guides/email-and-i18n.md): Mail goes through Django's `MAILERS["default"]`. Development prints to the console. In production
 - [Feature flags and settings](docs/en/guides/flags-and-settings.md): Switches operators flip without a deploy. Unknown flags are **off**. Evaluation order: user rule,
+- [Framework primer](docs/en/guides/framework-primer.md): What a developer (or an AI agent) needs to know about Django and the libraries around it to
 - [Frontend and SPA integration](docs/en/guides/frontend.md): The backend is an API. A browser or mobile client talks to it in one of two ways, and the choice
 - [MCP server](docs/en/guides/mcp.md): Every action whose channels include `mcp` is a tool. The server is stateless streamable HTTP
 - [Observability](docs/en/guides/observability.md): Locally: `docker compose --profile observability up` then open Grafana on port 3000. Sentry stays

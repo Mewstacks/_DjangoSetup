@@ -11,6 +11,7 @@ coding agent can follow.
 | [Start a product](guides/start-a-product.md) | From a clone to a deployed product, in order |
 | [Building with an AI coding agent](guides/ai-development.md) | `AGENTS.md`, the development MCP server, the scaffold |
 | [Architecture](architecture.md) | The pieces and how a request travels through them |
+| [Framework primer](guides/framework-primer.md) | Django, DRF, Temporal and the middleware order, with this project's rules |
 | [Add an action](guides/add-an-action.md) | The 10-minute path to a new capability |
 
 ## Guides

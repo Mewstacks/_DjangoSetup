@@ -55,7 +55,7 @@ def _is_trusted(value: str, networks: tuple[_IpNetwork, ...]) -> bool:
 def client_ip(request: HttpRequest) -> str | None:
     """Return a validated client IP, trusting X-Forwarded-For only through known proxies.
 
-    Host-agnostic: this works behind Fly, Heroku, Render, Railway, an nginx/HAProxy edge,
+    Host-agnostic: this works behind a PaaS router, an nginx/HAProxy edge,
     a cloud load balancer, or nothing at all. Configure whichever of these matches the
     deployment (both default to "trust nothing", so the direct peer is used):
 

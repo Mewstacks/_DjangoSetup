@@ -21,7 +21,7 @@ Short records of choices that shape the code. Each states the reason and the cos
 10. **allauth for accounts**, DOT for OAuth. Cost: two libraries; benefit: audited flows for MFA,
     verification and consent.
 11. **Closed sign-up by default.** Open systems are an explicit choice.
-12. **One image, many roles; no platform lock-in.** Fly is one target among others.
+12. **One image, many roles; no platform lock-in.** Any container platform is a target.
 
 Longer records:
 

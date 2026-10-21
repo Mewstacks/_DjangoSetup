@@ -63,7 +63,7 @@ Breaking: read [the migration guide](docs/en/migration/from-celery.md).
 - Django 6.1.2, DRF 3.18; strict production validators; encryption v2 (v1 still decrypts).
 
 ### Removed
-- Celery, Fly.io-specific configuration and documentation.
+- Celery and the platform-specific (PaaS) configuration and documentation.
 
 ### Security
 - 36 baseline findings fixed with regression tests; see

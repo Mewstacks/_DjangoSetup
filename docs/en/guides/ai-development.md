@@ -49,6 +49,8 @@ Tools:
 | `check_conventions` | Tenant door, unclassified models, unlisted personal fields, forbidden patterns, stale generated files |
 | `scaffold_resource` | A complete tenant resource. `dry_run` by default; never overwrites |
 | `run_gate` | `scripts/verify.py` (fast or full) and the tail of its output |
+| `framework_guide` | How Django, DRF, allauth, Temporal, `django.tasks` and FastMCP work, with the rule this project adds to each ([primer](framework-primer.md)) |
+| `middleware_stack`, `list_routes` | The live middleware order (outermost first) and every URL with its view |
 | `search_docs`, `get_doc` | The documentation, English or Portuguese, and only files under `docs/` |
 
 Resources: `conventions://rules`, `catalog://actions`, `catalog://privacy`, `agents://guide`,

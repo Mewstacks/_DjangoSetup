@@ -22,7 +22,7 @@ Registros curtos de escolhas que moldam o código. Cada um diz o motivo e o cust
 10. **allauth para contas**, DOT para OAuth. Custo: duas bibliotecas; benefício: fluxos auditados de
     MFA, verificação e consentimento.
 11. **Cadastro fechado por padrão.** Sistemas abertos são uma escolha explícita.
-12. **Uma imagem, vários papéis; sem lock-in de plataforma.** Fly é um alvo entre outros.
+12. **Uma imagem, vários papéis; sem lock-in de plataforma.** Qualquer plataforma de contêiner é alvo.
 
 Registros mais longos:
 

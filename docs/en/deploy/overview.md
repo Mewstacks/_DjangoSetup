@@ -24,7 +24,7 @@ with a read-only root filesystem (`/tmp` writable). Build with
 | Single host | `deploy/compose/compose.prod.yaml`: Caddy (automatic TLS), migrate, web, scheduler, Postgres, Redis, optional `--profile temporal` (server, UI, schema job) and `--profile backup` |
 | Kubernetes | `deploy/k8s/base` + `overlays/production` (kustomize): restricted pod security, probes, HPA, PDB, default-deny NetworkPolicy with public-internet-only egress, backup CronJob; run `migrate-job.yaml` before each rollout |
 | PaaS (Heroku-style, Dokku, Coolify, Railway, Render) | `Procfile` (release/web/worker/scheduler); provide Postgres and optionally Redis |
-| Fly.io, Cloud Run, ECS, Nomad | Run the same image; map `web` to the service and `migrate` to the release/pre-deploy step |
+| Cloud Run, ECS, Nomad, any other PaaS | Run the same image; map `web` to the service and `migrate` to the release/pre-deploy step |
 | Bare metal / VM | Install the wheel set from `requirements.txt`, run gunicorn under systemd behind nginx/Caddy; `scheduler` as a second unit |
 
 ## Two database identities

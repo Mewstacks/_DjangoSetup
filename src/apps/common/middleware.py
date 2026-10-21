@@ -14,6 +14,8 @@ REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9._-]{1,64}$")
 
 
 class RequestContextMiddleware:
+    """Mint a server-side request id, keep the client-sent one apart, echo it as X-Request-ID."""
+
     def __init__(self, get_response: Callable[[HttpRequest], HttpResponse]) -> None:
         self.get_response = get_response
 

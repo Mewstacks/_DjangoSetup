@@ -298,6 +298,10 @@ FORBIDDEN = (
 WHERE_TO_LOOK = (
     ("Architecture and the request path", "docs/en/architecture.md"),
     (
+        "How Django, DRF, Temporal and the middleware work here",
+        "docs/en/guides/framework-primer.md",
+    ),
+    (
         "Add an action / a flow / a webhook event",
         "docs/en/guides/add-an-action.md, add-a-flow.md, webhooks.md",
     ),

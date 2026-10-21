@@ -27,6 +27,7 @@ Read AGENTS.md first: it holds the rules, the commands and the definition of don
 - [Management commands](docs/en/guides/commands.md): Run with `python manage.py <command>` (or `entrypoint manage <command>` in the image). Local-only
 - [E-mail and languages](docs/en/guides/email-and-i18n.md): Mail goes through Django's `MAILERS["default"]`. Development prints to the console. In production
 - [Feature flags and settings](docs/en/guides/flags-and-settings.md): Switches operators flip without a deploy. Unknown flags are **off**. Evaluation order: user rule,
+- [Framework primer](docs/en/guides/framework-primer.md): What a developer (or an AI agent) needs to know about Django and the libraries around it to
 - [Frontend and SPA integration](docs/en/guides/frontend.md): The backend is an API. A browser or mobile client talks to it in one of two ways, and the choice
 - [MCP server](docs/en/guides/mcp.md): Every action whose channels include `mcp` is a tool. The server is stateless streamable HTTP
 - [Observability](docs/en/guides/observability.md): Locally: `docker compose --profile observability up` then open Grafana on port 3000. Sentry stays
@@ -290,6 +291,7 @@ lawyer's confirmation before launch.
 ## Where to look
 
 - Architecture and the request path: docs/en/architecture.md
+- How Django, DRF, Temporal and the middleware work here: docs/en/guides/framework-primer.md
 - Add an action / a flow / a webhook event: docs/en/guides/add-an-action.md, add-a-flow.md, webhooks.md
 - LGPD: what is automatic, what is yours: docs/en/lgpd/overview.md, compliance-matrix.md
 - Security: threat model, hardening, review status: docs/en/security/*.md
@@ -322,6 +324,7 @@ coding agent can follow.
 | [Start a product](guides/start-a-product.md) | From a clone to a deployed product, in order |
 | [Building with an AI coding agent](guides/ai-development.md) | `AGENTS.md`, the development MCP server, the scaffold |
 | [Architecture](architecture.md) | The pieces and how a request travels through them |
+| [Framework primer](guides/framework-primer.md) | Django, DRF, Temporal and the middleware order, with this project's rules |
 | [Add an action](guides/add-an-action.md) | The 10-minute path to a new capability |
 
 ## Guides
@@ -708,6 +711,8 @@ Tools:
 | `check_conventions` | Tenant door, unclassified models, unlisted personal fields, forbidden patterns, stale generated files |
 | `scaffold_resource` | A complete tenant resource. `dry_run` by default; never overwrites |
 | `run_gate` | `scripts/verify.py` (fast or full) and the tail of its output |
+| `framework_guide` | How Django, DRF, allauth, Temporal, `django.tasks` and FastMCP work, with the rule this project adds to each ([primer](framework-primer.md)) |
+| `middleware_stack`, `list_routes` | The live middleware order (outermost first) and every URL with its view |
 | `search_docs`, `get_doc` | The documentation, English or Portuguese, and only files under `docs/` |
 
 Resources: `conventions://rules`, `catalog://actions`, `catalog://privacy`, `agents://guide`,
@@ -1078,6 +1083,124 @@ Writers use `set_setting(key, value, organization=...)`, which validates the typ
 int). Action `settings.get` reads the effective value.
 
 Reads are served from a cached snapshot (60 s) invalidated on every write.
+
+
+---
+
+<!-- docs/en/guides/framework-primer.md -->
+
+# Framework primer
+
+What a developer (or an AI agent) needs to know about Django and the libraries around it to
+program correctly on this platform. Each section says how the thing works, then the rule this
+project adds. Official documentation for the versions in `pyproject.toml`: Django 6.1
+(<https://docs.djangoproject.com/en/6.1/>), DRF (<https://www.django-rest-framework.org/>),
+django-allauth (<https://docs.allauth.org/>), Temporal Python SDK
+(<https://docs.temporal.io/develop/python>), FastMCP (<https://gofastmcp.com/>).
+
+## Request cycle and middleware
+
+A request enters the ASGI app, passes the middleware list **top to bottom**, reaches the view,
+and the response travels back **bottom to top**. A middleware that returns early (a refusal)
+skips everything below it. Order is therefore a security decision, and `settings.MIDDLEWARE` is
+the only place it is set. Call the `middleware_stack` tool for the live order with a note on each.
+
+Rules here:
+
+- `SecurityMiddleware` and `SecurityHeadersMiddleware` come first so every response, including
+  refusals, carries the headers.
+- `RequestContextMiddleware` runs before anything that logs, so every line has a request id.
+- Authentication (`AuthenticationMiddleware`) must precede `OrganizationContextMiddleware`,
+  which reads `request.user` to resolve the tenant from `X-Organization-ID`.
+- A new middleware goes where its dependencies are already populated and before anything that
+  needs its result. State the reason in a comment above the entry.
+- `/mcp` is mounted beside Django in the ASGI app and does **not** pass through this list; it has
+  its own pre-flight (`apps.actions.mcp.preflight`). A control added to middleware must be added
+  there too, or it does not cover MCP.
+
+## ORM, models and migrations
+
+- Tenant models subclass `OrganizationScopedModel` and are read through `ctx.scoped(Model)` /
+  `ctx.get`. Never `Model.objects` for tenant rows in actions.
+- Every model is classified in `<app>/privacy.py` (LGPD); the test suite fails until it is.
+- Start from `UUIDTimeStampedModel` (UUID primary key, `created_at`, `updated_at`); datetimes are
+  timezone-aware (`USE_TZ`).
+- `makemigrations` after every model change; never edit a migration that has shipped; keep data
+  migrations idempotent. The migrations run as the schema owner, the web process runs as a
+  role that cannot alter schema (see the audit ADR).
+- Avoid N+1 queries: `select_related` for foreign keys, `prefetch_related` for reverse sets.
+  Do not filter on an `EncryptedTextField`; use `blind_index()` for equality.
+
+## Transactions and signals
+
+- An action runs in one transaction (`ATOMIC_REQUESTS` is not used); the audit event is written
+  inside it so it cannot exist without the change.
+- Side effects that leave the database (e-mail, webhook, task) go through
+  `transaction.on_commit` or the webhook outbox, never directly inside the transaction.
+- Signals are for cross-app reactions already in the codebase (audit, uploads cleanup). Business
+  rules do not go in signals: put them in `services.py` where REST, MCP, CLI and Temporal share
+  them.
+
+## Django REST Framework
+
+- Operations are actions; classic CRUD may use `OrganizationScopedViewSet` in `api.py`.
+- Permissions: `IsAuthenticated`, `HasOrganizationContext`, `RoleCanWrite`, and
+  `ApiKeyScopePermission` for keys. A viewset that lacks them is a bug the tests catch.
+- Writable foreign keys use `OrgScopedPrimaryKeyRelatedField` so an id from another tenant is
+  refused.
+- Errors use one envelope for every surface; raise `DomainError` subclasses (`NotFound`,
+  `Forbidden`, `Invalid`, `Conflict`), never leak Django `ValidationError` text.
+
+## Accounts, sessions and MFA
+
+- Sign-in, e-mail verification and MFA are django-allauth (headless). Lockout is django-axes.
+- Staff need MFA for `/admin/`; owners and admins need it in production
+  (`ORG_PRIVILEGED_MFA_REQUIRED`), enforced in the DRF permission and in the action runtime.
+- API keys and OAuth tokens act only within their scopes; the role is read from the membership on
+  every call. Minting a key needs a recent sign-in.
+
+## Settings
+
+Four modules: `base`, `local`, `test`, `production`. Add configuration with
+`env_str/env_int/env_bool/env_list` and a comment above it; the environment reference is
+generated from these calls. Production-only constraints live in
+`config/settings/validators.py`; never loosen one.
+
+## Templates and CSP
+
+The few server-rendered pages (sign-in, MFA, consent, OAuth) are CSP-clean: no inline script or
+style, no third-party origin. `{# #}` comments are single-line only; use
+`{% comment %}` for more.
+
+## Temporal (flows and jobs)
+
+- A **workflow** is deterministic code that is replayed from history: no Django ORM, no network,
+  no `datetime.now()`, no random. Call actions through `apps.flows.sdk.call_action`.
+- An **activity** is a normal sync function that does the work; payloads are sealed (encrypted)
+  and carry ids, not documents.
+- A **job** is a function on a cron schedule (Temporal Schedule, or `run_scheduler` when Temporal
+  is off). `manage.py flows_sync` creates or updates Schedules after a deploy.
+- Changing a workflow that may be running needs `workflow.patched`; keep replay histories in
+  tests.
+- With Temporal off the local engine runs the same flows; not every flow is portable and the
+  capability matrix says which.
+
+## Background tasks (`django.tasks`)
+
+`TemporalTaskBackend` runs declared tasks on Temporal, the immediate backend runs them inline.
+Only tasks under `FLOWS_TASK_MODULE_PREFIXES` are allowed. Pass ids, not model instances.
+
+## Testing
+
+`pytest` with `pytest-django`. Use the fixtures in `tests/conftest.py` (`org_client`,
+`other_org_client`). A new action needs a test for its scope, a read-only role and a cross-tenant
+attempt; the conformance suite already runs every registered action through the standard checks.
+
+## MCP (FastMCP)
+
+Two servers, two jobs: `/mcp` operates a running product; `python -m devtools.mcp` builds it.
+Tools are actions; resources and prompts live in `agent.py`. A tool description is a prompt: write
+it for the model that will read it.
 
 
 ---
@@ -2616,7 +2739,7 @@ with a read-only root filesystem (`/tmp` writable). Build with
 | Single host | `deploy/compose/compose.prod.yaml`: Caddy (automatic TLS), migrate, web, scheduler, Postgres, Redis, optional `--profile temporal` (server, UI, schema job) and `--profile backup` |
 | Kubernetes | `deploy/k8s/base` + `overlays/production` (kustomize): restricted pod security, probes, HPA, PDB, default-deny NetworkPolicy with public-internet-only egress, backup CronJob; run `migrate-job.yaml` before each rollout |
 | PaaS (Heroku-style, Dokku, Coolify, Railway, Render) | `Procfile` (release/web/worker/scheduler); provide Postgres and optionally Redis |
-| Fly.io, Cloud Run, ECS, Nomad | Run the same image; map `web` to the service and `migrate` to the release/pre-deploy step |
+| Cloud Run, ECS, Nomad, any other PaaS | Run the same image; map `web` to the service and `migrate` to the release/pre-deploy step |
 | Bare metal / VM | Install the wheel set from `requirements.txt`, run gunicorn under systemd behind nginx/Caddy; `scheduler` as a second unit |
 
 ## Two database identities
@@ -2750,7 +2873,7 @@ keep the others on their tag until you do.
 
 1. **Dependencies**: Django 6.1.2, DRF 3.18.x; remove `celery`; add the new requirements.
 2. **Settings**: replace `CELERY_*` with `TEMPORAL_*` (see [env vars](../reference/env-vars.md));
-   `FLY_*` variables are gone. Declare your proxy: `TRUSTED_PROXY_COUNT` or `TRUSTED_PROXY_IPS`.
+   platform-specific variables from the old template are gone. Declare your proxy: `TRUSTED_PROXY_COUNT` or `TRUSTED_PROXY_IPS`.
    New required production variables: `AUDIT_HMAC_KEY`, `PUBLIC_URL`, `PRIVACY_CONTROLLER_NAME`,
    `DPO_EMAIL`/`DPO_CONTACT_URL` ([troubleshooting](../guides/troubleshooting.md)).
 3. **Tasks**: `@shared_task` functions become `@job` (scheduled/manual) or `django.tasks` tasks;
@@ -2917,7 +3040,7 @@ Short records of choices that shape the code. Each states the reason and the cos
 10. **allauth for accounts**, DOT for OAuth. Cost: two libraries; benefit: audited flows for MFA,
     verification and consent.
 11. **Closed sign-up by default.** Open systems are an explicit choice.
-12. **One image, many roles; no platform lock-in.** Fly is one target among others.
+12. **One image, many roles; no platform lock-in.** Any container platform is a target.
 
 Longer records:
 

@@ -207,6 +207,7 @@ lawyer's confirmation before launch.
 ## Where to look
 
 - Architecture and the request path: docs/en/architecture.md
+- How Django, DRF, Temporal and the middleware work here: docs/en/guides/framework-primer.md
 - Add an action / a flow / a webhook event: docs/en/guides/add-an-action.md, add-a-flow.md, webhooks.md
 - LGPD: what is automatic, what is yours: docs/en/lgpd/overview.md, compliance-matrix.md
 - Security: threat model, hardening, review status: docs/en/security/*.md

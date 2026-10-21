@@ -35,7 +35,7 @@ def test_removed_platforms_are_not_documented_as_current() -> None:
     for lang in LANGS:
         for page in pages(lang) - allowed:
             text = (DOCS / lang / page).read_text(encoding="utf-8").lower()
-            if "celery" in text or "fly.io" in text.replace("fly.io, cloud run", ""):
+            if "celery" in text or "fly.io" in text or "fly.toml" in text:
                 offenders.append(f"{lang}/{page}")
     assert not offenders, offenders
 

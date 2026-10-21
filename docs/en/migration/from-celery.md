@@ -5,7 +5,7 @@ keep the others on their tag until you do.
 
 1. **Dependencies**: Django 6.1.2, DRF 3.18.x; remove `celery`; add the new requirements.
 2. **Settings**: replace `CELERY_*` with `TEMPORAL_*` (see [env vars](../reference/env-vars.md));
-   `FLY_*` variables are gone. Declare your proxy: `TRUSTED_PROXY_COUNT` or `TRUSTED_PROXY_IPS`.
+   platform-specific variables from the old template are gone. Declare your proxy: `TRUSTED_PROXY_COUNT` or `TRUSTED_PROXY_IPS`.
    New required production variables: `AUDIT_HMAC_KEY`, `PUBLIC_URL`, `PRIVACY_CONTROLLER_NAME`,
    `DPO_EMAIL`/`DPO_CONTACT_URL` ([troubleshooting](../guides/troubleshooting.md)).
 3. **Tasks**: `@shared_task` functions become `@job` (scheduled/manual) or `django.tasks` tasks;

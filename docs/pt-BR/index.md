@@ -11,6 +11,7 @@ um agente de IA consegue seguir.
 | [Comece um produto](guides/start-a-product.md) | De um clone a um produto publicado, em ordem |
 | [Construindo com um agente de IA](guides/ai-development.md) | `AGENTS.md`, o servidor MCP de desenvolvimento, o scaffold |
 | [Arquitetura](architecture.md) | As peças e como uma requisição passa por elas |
+| [Cartilha do framework](guides/framework-primer.md) | Django, DRF, Temporal e a ordem do middleware, com as regras do projeto |
 | [Adicionar uma ação](guides/add-an-action.md) | O caminho de 10 minutos para uma nova capacidade |
 
 ## Guias

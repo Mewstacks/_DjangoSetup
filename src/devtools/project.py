@@ -475,3 +475,73 @@ def catalog_json(kind: str) -> str:
         indent=2,
         ensure_ascii=False,
     )
+
+
+# --- Framework introspection ---------------------------------------------------------------
+
+PRIMER = "docs/en/guides/framework-primer.md"
+
+
+def middleware_stack() -> list[dict[str, Any]]:
+    """The live middleware order, outermost first, with each class's own summary line."""
+    from django.conf import settings
+    from django.utils.module_loading import import_string
+
+    stack = []
+    for position, path in enumerate(settings.MIDDLEWARE, start=1):
+        try:
+            summary = (import_string(path).__doc__ or "").strip().splitlines()
+        except ImportError:
+            summary = ["(not importable)"]
+        stack.append(
+            {
+                "order": position,
+                "middleware": path,
+                "summary": summary[0] if summary else "",
+                "first_party": path.startswith("apps."),
+            }
+        )
+    return stack
+
+
+def list_routes() -> list[dict[str, str]]:
+    """Every URL pattern: path, name and the view that serves it."""
+    from django.urls import URLPattern, URLResolver, get_resolver
+
+    routes: list[dict[str, str]] = []
+
+    def walk(patterns: Any, prefix: str) -> None:
+        for entry in patterns:
+            if isinstance(entry, URLResolver):
+                walk(entry.url_patterns, prefix + str(entry.pattern))
+            elif isinstance(entry, URLPattern):
+                callback = entry.callback
+                view = getattr(callback, "view_class", callback)
+                routes.append(
+                    {
+                        "path": "/" + (prefix + str(entry.pattern)).lstrip("/"),
+                        "name": entry.name or "",
+                        "view": f"{view.__module__}.{view.__qualname__}",
+                    }
+                )
+
+    walk(get_resolver().url_patterns, "")
+    return routes
+
+
+def framework_topics() -> list[str]:
+    text = (ROOT / PRIMER).read_text(encoding="utf-8")
+    return [line[3:].strip() for line in text.splitlines() if line.startswith("## ")]
+
+
+def framework_guide(topic: str = "") -> str:
+    """One section of the framework primer, matched by a word of its heading."""
+    text = (ROOT / PRIMER).read_text(encoding="utf-8")
+    sections = re.split(r"(?m)^## ", text)[1:]
+    wanted = topic.strip().lower()
+    if wanted:
+        for section in sections:
+            title = section.splitlines()[0].lower()
+            if wanted in title or any(word in title for word in wanted.split() if len(word) > 3):
+                return "## " + section.strip()
+    return "Topics: " + "; ".join(framework_topics())

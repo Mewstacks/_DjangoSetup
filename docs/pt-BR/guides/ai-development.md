@@ -49,6 +49,8 @@ Ferramentas:
 | `check_conventions` | Porta do tenant, modelos sem classificação, campos pessoais não listados, padrões proibidos, arquivos gerados desatualizados |
 | `scaffold_resource` | Um recurso de tenant completo. `dry_run` por padrão; nunca sobrescreve |
 | `run_gate` | `scripts/verify.py` (rápido ou completo) e o fim da saída |
+| `framework_guide` | Como Django, DRF, allauth, Temporal, `django.tasks` e FastMCP funcionam, com a regra que este projeto acrescenta a cada um ([cartilha](framework-primer.md)) |
+| `middleware_stack`, `list_routes` | A ordem real do middleware (de fora para dentro) e toda URL com sua view |
 | `search_docs`, `get_doc` | A documentação, em inglês ou português, e só arquivos de `docs/` |
 
 Recursos: `conventions://rules`, `catalog://actions`, `catalog://privacy`, `agents://guide`,
