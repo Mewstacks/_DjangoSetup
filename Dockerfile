@@ -2,7 +2,7 @@
 # Base images are pinned by tag and bumped by Dependabot. For byte-for-byte rebuilds pin them by
 # digest (python:3.12-slim-bookworm@sha256:...) in your own registry mirror; the release workflow
 # publishes the application image's digest, and that digest is what a deployment should name.
-FROM python:3.12-slim-bookworm AS builder
+FROM python:3.15-slim-bookworm AS builder
 
 ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
     PIP_NO_CACHE_DIR=1 \
@@ -20,7 +20,7 @@ ARG EXTRAS=""
 # hadolint ignore=DL3059
 RUN uv sync --locked --no-dev --no-editable ${EXTRAS}
 
-FROM python:3.12-slim-bookworm AS runtime
+FROM python:3.15-slim-bookworm AS runtime
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
